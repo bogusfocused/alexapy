@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name = "AlexaPy",
-    version = "0.0.1",
+    version = "0.0.2",
     author = "Keaton Taylor",
     author_email = "keatonstaylor@gmail.com",
     description = ("Python API to control Amazon Echo Devices Programatically"),
