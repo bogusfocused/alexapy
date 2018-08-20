@@ -9,7 +9,7 @@ before_script:
    - pip install twine
    - python setup.py sdist
 
-deploy:
+deploy_production:
   stage: deploy
   variables:
     TWINE_USERNAME: $PRODUCTION_USERNAME
