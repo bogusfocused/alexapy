@@ -17,7 +17,7 @@ setup(
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Topic :: Utilities",
-        "License :: OSI Approved  :: Apache Software License",
+        "License :: OSI Approved :: Apache Software License"
     ],
     install_requires= [
         'beautifulsoup4',
