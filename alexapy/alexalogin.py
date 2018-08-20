@@ -3,7 +3,7 @@ import requests
 class AlexaLogin():
     """Class to handle login connection to Alexa."""
 
-    def __init__(self, url, email, password, hass):
+    def __init__(self, url, email, password, hass, alexa_data):
         """Set up initial connection and log in."""
         import pickle
         self._url = url
@@ -12,9 +12,9 @@ class AlexaLogin():
         self._session = None
         self._data = None
         self.status = {}
-        self._cookiefile = hass.config.path("{}.pickle".format(ALEXA_DATA))
-        self._debugpost = hass.config.path("{}post.html".format(ALEXA_DATA))
-        self._debugget = hass.config.path("{}get.html".format(ALEXA_DATA))
+        self._cookiefile = hass.config.path("{}.pickle".format(alexa_data))
+        self._debugpost = hass.config.path("{}post.html".format(alexa_data))
+        self._debugget = hass.config.path("{}get.html".format(alexa_data))
 
         cookies = None
         if (self._cookiefile):
