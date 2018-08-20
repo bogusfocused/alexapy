@@ -15,9 +15,9 @@ setup(
     packages=find_packages(),
     long_description=read('README.md'),
     classifiers=[
-        "Development Status :: 1 - Alpha",
+        "Development Status :: 3 - Alpha",
         "Topic :: Utilities",
-        "License :: Apache License",
+        "License :: OSI Approved  :: Apache Software License",
     ],
     install_requires= [
         'beautifulsoup4',
