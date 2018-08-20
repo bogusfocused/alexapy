@@ -7,5 +7,6 @@ build:
   stage: build
   script:
     - python3 setup.py sdist
-
-
+  artifacts:
+    paths:
+      - "dist"
