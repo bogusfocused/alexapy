@@ -13,7 +13,7 @@ class AlexaLogin():
         self._url = url
         self._email = email
         self._password = password
-        self._session = None
+        self.session = None
         self._data = None
         self.status = {}
         self._cookiefile = hass.config.path("{}.pickle".format(alexa_data))

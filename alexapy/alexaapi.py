@@ -9,15 +9,15 @@ class AlexaAPI():
     def __init__(self, device, session, url):
         """Initialize Alexa device."""
         self._device = device
-        self._session = session
+        self.session = session
         self._url = 'https://alexa.' + url
 
-        csrf = self._session.cookies.get_dict()['csrf']
-        self._session.headers['csrf'] = csrf
+        csrf = self.session.cookies.get_dict()['csrf']
+        self.session.headers['csrf'] = csrf
 
     def _post_request(self, uri, data):
         try:
-            self._session.post(self._url + uri, json=data)
+            self.session.post(self._url + uri, json=data)
         except Exception as ex:
             template = ("An exception of type {0} occurred."
                         " Arguments:\n{1!r}")
@@ -27,7 +27,7 @@ class AlexaAPI():
 
     def _get_request(self, uri, data=None):
         try:
-            return self._session.get(self._url + uri, json=data)
+            return self.session.get(self._url + uri, json=data)
         except Exception as ex:
             template = ("An exception of type {0} occurred."
                         " Arguments:\n{1!r}")
