@@ -1,4 +1,7 @@
 import requests
+import logging
+
+_LOGGER = logging.getLogger(__name__)
 
 class AlexaAPI():
     """Class for accessing Alexa."""

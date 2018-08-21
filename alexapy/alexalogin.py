@@ -1,4 +1,8 @@
 import requests
+import logging
+
+_LOGGER = logging.getLogger(__name__)
+
 
 class AlexaLogin():
     """Class to handle login connection to Alexa."""
