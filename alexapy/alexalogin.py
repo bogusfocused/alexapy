@@ -41,7 +41,7 @@ class AlexaLogin():
 
     def reset_login(self):
         """Remove data related to existing login."""
-        self._session = None
+        self.session = None
         self._data = None
         self.status = {}
 
@@ -62,14 +62,14 @@ class AlexaLogin():
 
         Attempts to get device list, and if unsuccessful login failed
         """
-        if self._session is None:
+        if self.session is None:
             site = 'https://www.' + self._url + '/gp/sign-in.html'
 
             '''initiate session'''
-            self._session = requests.Session()
+            self.session = requests.Session()
 
             '''define session headers'''
-            self._session.headers = {
+            self.session.headers = {
                 'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; Win64; x64) '
                                'AppleWebKit/537.36 (KHTML, like Gecko) '
                                'Chrome/44.0.2403.61 Safari/537.36'),
@@ -78,8 +78,8 @@ class AlexaLogin():
                 'Accept-Language': 'en-US,en;q=0.5',
                 'Referer': site
             }
-            self._session.cookies = cookies
-        get_resp = self._session.get('https://alexa.' + self._url +
+            self.session.cookies = cookies
+        get_resp = self.session.get('https://alexa.' + self._url +
                                      '/api/devices-v2/device')
         # with open(self._debugget, mode='wb') as localfile:
         #     localfile.write(get_resp.content)
@@ -119,13 +119,13 @@ class AlexaLogin():
         #  site = 'https://www.' + self._url + '/gp/sign-in.html'
         #  use alexa site instead
         site = 'https://alexa.' + self._url + '/api/devices-v2/device'
-        if self._session is None:
+        if self.session is None:
             '''initiate session'''
 
-            self._session = requests.Session()
+            self.session = requests.Session()
 
             '''define session headers'''
-            self._session.headers = {
+            self.session.headers = {
                 'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; Win64; x64) '
                                'AppleWebKit/537.36 (KHTML, like Gecko) '
                                'Chrome/44.0.2403.61 Safari/537.36'),
@@ -136,7 +136,7 @@ class AlexaLogin():
             }
 
         if self._data is None:
-            resp = self._session.get(site)
+            resp = self.session.get(site)
             html = resp.text
             '''get BeautifulSoup object of the html of the login page'''
             soup = BeautifulSoup(html, 'html.parser')
@@ -168,7 +168,7 @@ class AlexaLogin():
         # _LOGGER.debug("Submit Form Data: {}".format(self._data))
 
         '''submit post request with username/password and other needed info'''
-        post_resp = self._session.post(site, data=self._data)
+        post_resp = self.session.post(site, data=self._data)
         # with open(self._debugpost, mode='wb') as localfile:
         #     localfile.write(post_resp.content)
 
@@ -185,7 +185,7 @@ class AlexaLogin():
             login_url = login_tag.get("action")
             _LOGGER.debug("Login requested again; retrying once: {}".format(
                 login_url))
-            post_resp = self._session.post(login_url,
+            post_resp = self.session.post(login_url,
                                            data=self._data)
             # with open(self._debugpost, mode='wb') as localfile:
             #     localfile.write(post_resp.content)
@@ -212,7 +212,7 @@ class AlexaLogin():
                 status['login_successful'] = True
                 with open(self._cookiefile, 'wb') as myfile:
                     try:
-                        pickle.dump(self._session.cookies, myfile)
+                        pickle.dump(self.session.cookies, myfile)
                     except Exception as ex:
                         template = ("An exception of type {0} occurred."
                                     " Arguments:\n{1!r}")
