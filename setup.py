@@ -1,4 +1,4 @@
-import os 
+import os
 from setuptools import setup, find_packages
 
 def read(fname):
@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name = "AlexaPy",
-    version = "0.0.5",
+    version = "0.1.0",
     author = "Keaton Taylor",
     author_email = "keatonstaylor@gmail.com",
     description = ("Python API to control Amazon Echo Devices Programatically"),
