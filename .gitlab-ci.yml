@@ -19,3 +19,5 @@ deploy_production:
   artifacts:
     paths:
       - dist
+  except:
+    - next

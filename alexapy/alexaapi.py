@@ -1,15 +1,32 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#  SPDX-License-Identifier: Apache-2.0
 """
 Python Package for controlling Alexa devices (echo dot, etc) programmatically.
 
 For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
-VERSION 1.0.0
 """
-import logging
 import json
-
+import logging
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _catch_all_exceptions(func):
+    import functools
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as ex:  # pylint: disable=broad-except
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.error("An error occured accessing AlexaAPI: %s", (message))
+            return None
+    return wrapper
 
 
 class AlexaAPI():
@@ -24,33 +41,17 @@ class AlexaAPI():
         """Initialize Alexa device."""
         self._device = device
         self._login = login
-        self._session = login._session
-        self._url = 'https://alexa.' + login._url
+        self._session = login.session
+        self._url = 'https://alexa.' + login.url
 
         csrf = self._session.cookies.get_dict()['csrf']
         self._session.headers['csrf'] = csrf
 
-    def _catchAllExceptions(func):
-        import functools
-
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except Exception as ex:
-                template = ("An exception of type {0} occurred."
-                            " Arguments:\n{1!r}")
-                message = template.format(type(ex).__name__, ex.args)
-                _LOGGER.error(("An error occured accessing AlexaAPI: "
-                               "{}").format(message))
-                return None
-        return wrapper
-
-    @_catchAllExceptions
+    @_catch_all_exceptions
     def _post_request(self, uri, data):
         return self._session.post(self._url + uri, json=data)
 
-    @_catchAllExceptions
+    @_catch_all_exceptions
     def _get_request(self, uri, data=None):
         return self._session.get(self._url + uri, json=data)
 
@@ -85,30 +86,31 @@ class AlexaAPI():
         Alexa.Calendar.PlayToday
         Alexa.Calendar.PlayNext
         """
-        operationPayload = {
-                "deviceType": self._device._device_type,
-                "deviceSerialNumber": self._device.unique_id,
-                "locale": "en-US",
-                "customerId": self._device._device_owner_customer_id
-               }
+        operation_payload = {
+            "deviceType": self._device._device_type,
+            "deviceSerialNumber": self._device.unique_id,
+            "locale": "en-US",
+            "customerId": self._device._device_owner_customer_id
+            }
         if kwargs is not None:
-            operationPayload.update(kwargs)
-        sequenceJson = {
+            operation_payload.update(kwargs)
+        sequence_json = {
             "@type": "com.amazon.alexa.behaviors.model.Sequence",
             "startNode": {
-                 "@type":
-                 "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
-                 "type": sequence,
-                 "operationPayload": operationPayload
+                "@type":
+                "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
+                "type": sequence,
+                "operationPayload": operation_payload
                 }
         }
         data = {
             "behaviorId": "PREVIEW",
-            "sequenceJson": json.dumps(sequenceJson),
+            "sequenceJson": json.dumps(sequence_json),
             "status": "ENABLED"
         }
-        _LOGGER.debug("Running sequence: %s data: %s" % (sequence,
-                                                         json.dumps(data)))
+        _LOGGER.debug("Running sequence: %s data: %s",
+                      sequence,
+                      json.dumps(data))
         self._post_request('/api/behaviors/preview',
                            data=data)
 
@@ -121,47 +123,57 @@ class AlexaAPI():
         utterance (string): The Alexa utterance to run the routine.
         """
         automations = AlexaAPI.get_automations(self._login)
-        automationId = None
+        automation_id = None
         sequence = None
         for automation in automations:
+            # skip other automations (e.g., time, GPS, buttons)
+            if 'utterance' not in automation['triggers'][0]['payload']:
+                continue
             a_utterance = automation['triggers'][0]['payload']['utterance']
             if (a_utterance is not None and
                     a_utterance.lower() == utterance.lower()):
-                automationId = automation['automationId']
+                automation_id = automation['automationId']
                 sequence = automation['sequence']
-        if (automationId is None or sequence is None):
-            _LOGGER.debug("No routine found for %s" % (utterance))
+        if (automation_id is None or sequence is None):
+            _LOGGER.debug("No routine found for %s", utterance)
             return
-        newNodes = []
-        for node in sequence['startNode']['nodesToExecute']:
-            node['operationPayload']['deviceType'] = self._device._device_type
-            (node['operationPayload']
+        new_nodes = []
+        if 'nodesToExecute' in sequence['startNode']:
+            for node in sequence['startNode']['nodesToExecute']:
+                (node['operationPayload']
+                 ['deviceType']) = self._device._device_type
+                (node['operationPayload']
                  ['deviceSerialNumber']) = self._device.unique_id
-            newNodes.append(node)
-        sequence['startNode']['nodesToExecute'] = newNodes
-
+                new_nodes.append(node)
+            sequence['startNode']['nodesToExecute'] = new_nodes
+        else:
+            (sequence['startNode']['operationPayload']
+             ['deviceType']) = self._device._device_type
+            (sequence['startNode']['operationPayload']
+             ['deviceSerialNumber']) = self._device.unique_id
         data = {
-            "behaviorId": automationId,
+            "behaviorId": automation_id,
             "sequenceJson": json.dumps(sequence),
             "status": "ENABLED"
         }
-        _LOGGER.debug("Running routine: %s with data: %s" % (utterance,
-                                                             json.dumps(data)))
+        _LOGGER.debug("Running routine: %s with data: %s",
+                      utterance,
+                      json.dumps(data))
         self._post_request('/api/behaviors/preview',
                            data=data)
 
-    def play_music(self, provider_id, search_phrase, customerId=None):
+    def play_music(self, provider_id, search_phrase, customer_id=None):
         """Play Music based on search."""
         self.send_sequence("Alexa.Music.PlaySearchPhrase",
-                           customerId=customerId,
+                           customerId=customer_id,
                            searchPhrase=search_phrase,
                            sanitizedSearchPhrase=search_phrase,
                            musicProviderId=provider_id)
 
-    def send_tts(self, message, customerId=None):
+    def send_tts(self, message, customer_id=None):
         """Send message for TTS at speaker."""
         self.send_sequence("Alexa.Speak",
-                           customerId=customerId,
+                           customerId=customer_id,
                            textToSpeak=message)
 
     def set_media(self, data):
@@ -192,7 +204,7 @@ class AlexaAPI():
                         "volumeLevel": volume*100})
         self.send_sequence("Alexa.DeviceControls.Volume", value=volume*100)
 
-    @_catchAllExceptions
+    @_catch_all_exceptions
     def get_state(self):
         """Get playing state."""
         response = self._get_request('/api/np/player?deviceSerialNumber=' +
@@ -203,11 +215,11 @@ class AlexaAPI():
         return response.json()
 
     @staticmethod
-    @_catchAllExceptions
+    @_catch_all_exceptions
     def get_bluetooth(login):
         """Get paired bluetooth devices."""
-        session = login._session
-        url = login._url
+        session = login.session
+        url = login.url
         response = session.get('https://alexa.' + url +
                                '/api/bluetooth?cached=false')
         return response.json()
@@ -226,41 +238,41 @@ class AlexaAPI():
                            self._device.unique_id, data=None)
 
     @staticmethod
-    @_catchAllExceptions
+    @_catch_all_exceptions
     def get_devices(login):
         """Identify all Alexa devices."""
-        session = login._session
-        url = login._url
+        session = login.session
+        url = login.url
         response = session.get('https://alexa.' + url +
                                '/api/devices-v2/device')
         return response.json()['devices']
 
     @staticmethod
-    @_catchAllExceptions
+    @_catch_all_exceptions
     def get_authentication(login):
         """Get authentication json."""
-        session = login._session
-        url = login._url
+        session = login.session
+        url = login.url
         response = session.get('https://alexa.' + url +
                                '/api/bootstrap')
         return response.json()['authentication']
 
     @staticmethod
-    @_catchAllExceptions
+    @_catch_all_exceptions
     def get_activities(login, items=10):
         """Get activities json."""
-        session = login._session
-        url = login._url
+        session = login.session
+        url = login.url
         response = session.get('https://alexa.' + url + '/api/activities?'
                                'startTime=&size=' + str(items) + '&offset=1')
         return response.json()['activities']
 
     @staticmethod
-    @_catchAllExceptions
+    @_catch_all_exceptions
     def get_automations(login):
         """Identify all Alexa automations."""
-        session = login._session
-        url = login._url
+        session = login.session
+        url = login.url
         response = session.get('https://alexa.' + url +
                                '/api/behaviors/automations')
         return response.json()
@@ -273,15 +285,13 @@ class AlexaAPI():
         entry where Echo successfully responded.
         """
         response = AlexaAPI.get_activities(login, items)
-        if (response is not None):
+        if response is not None:
             for last_activity in response:
                 # Ignore discarded activity records
                 if (last_activity['activityStatus']
                         != 'DISCARDED_NON_DEVICE_DIRECTED_INTENT'):
                     return {
-                            'serialNumber': (last_activity['sourceDeviceIds']
-                                                          [0]
-                                                          ['serialNumber']),
-                            'timestamp': last_activity['creationTimestamp']
-                            }
+                        'serialNumber': (last_activity['sourceDeviceIds'][0]
+                                         ['serialNumber']),
+                        'timestamp': last_activity['creationTimestamp']}
         return None

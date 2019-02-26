@@ -1,0 +1,10 @@
+[MESSAGES CONTROL]
+# Reasons disabled:
+# protected-access - Dependent on HA component class for now
+disable = protected-access
+
+[REPORTS]
+reports=no
+
+[FORMAT]
+expected-line-ending-format=LF
