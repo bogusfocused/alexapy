@@ -1,18 +1,22 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#  SPDX-License-Identifier: Apache-2.0
 """
 Python Package for controlling Alexa devices (echo dot, etc) programmatically.
 
 For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
-VERSION 1.0.0
 """
 
-import requests
 import logging
+
+import requests
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class AlexaLogin():
+    # pylint: disable=too-many-instance-attributes
     """Class to handle login connection to Alexa. This class will not reconnect.
 
     Args:
@@ -24,46 +28,57 @@ class AlexaLogin():
     """
 
     def __init__(self, url, email, password, outputpath, debug=False):
+        # pylint: disable=too-many-arguments
         """Set up initial connection and log in."""
-        ALEXA_DATA = "alexa_media"
+        prefix = "alexa_media"
         self._url = url
         self._email = email
         self._password = password
         self._session = None
         self._data = None
         self.status = {}
-        self._cookiefile = outputpath("{}.{}.pickle".format(ALEXA_DATA, email))
-        self._debugpost = outputpath("{}{}post.html".format(ALEXA_DATA, email))
-        self._debugget = outputpath("{}{}get.html".format(ALEXA_DATA, email))
+        self._cookiefile = outputpath("{}.{}.pickle".format(prefix, email))
+        self._debugpost = outputpath("{}{}post.html".format(prefix, email))
+        self._debugget = outputpath("{}{}get.html".format(prefix, email))
         self._lastreq = None
         self._debug = debug
 
         self.login_with_cookie()
 
-    def get_email(self):
+    @property
+    def email(self):
         """Return email for this Login."""
         return self._email
+
+    @property
+    def session(self):
+        """Return session for this Login."""
+        return self._session
+
+    @property
+    def url(self):
+        """Return session for this Login."""
+        return self._url
 
     def login_with_cookie(self):
         """Attempt to login after loading cookie."""
         import pickle
         cookies = None
 
-        if (self._cookiefile):
+        if self._cookiefile:
             try:
                 _LOGGER.debug(
-                    "Trying cookie from file {}".format(
-                        self._cookiefile))
+                    "Trying cookie from file %s", self._cookiefile)
                 with open(self._cookiefile, 'rb') as myfile:
                     cookies = pickle.load(myfile)
-                    _LOGGER.debug("cookie loaded: {}".format(cookies))
-            except Exception as ex:
+                    _LOGGER.debug("cookie loaded: %s", cookies)
+            except OSError as ex:
                 template = ("An exception of type {0} occurred."
                             " Arguments:\n{1!r}")
                 message = template.format(type(ex).__name__, ex.args)
                 _LOGGER.debug(
-                    "Error loading pickled cookie from {}: {}".format(
-                        self._cookiefile, message))
+                    "Error loading pickled cookie from %s: %s",
+                    self._cookiefile, message)
 
         self.login(cookies=cookies)
 
@@ -77,26 +92,26 @@ class AlexaLogin():
         if ((self._cookiefile) and os.path.exists(self._cookiefile)):
             try:
                 _LOGGER.debug(
-                    "Trying to delete cookie file {}".format(
-                        self._cookiefile))
+                    "Trying to delete cookie file %s", self._cookiefile)
                 os.remove(self._cookiefile)
-            except Exception as ex:
+            except OSError as ex:
                 template = ("An exception of type {0} occurred."
                             " Arguments:\n{1!r}")
                 message = template.format(type(ex).__name__, ex.args)
                 _LOGGER.debug(
-                    "Error deleting cookie {}: {}".format(
-                        self._cookiefile, message))
+                    "Error deleting cookie %s: %s", self._cookiefile, message)
 
-    def get_inputs(self, soup, searchfield={'name': 'signIn'}):
+    @classmethod
+    def get_inputs(cls, soup, searchfield=None):
         """Parse soup for form with searchfield."""
+        searchfield = searchfield or {'name': 'signIn'}
         data = {}
         form = soup.find('form', searchfield)
         for field in form.find_all('input'):
             try:
                 data[field['name']] = ""
                 data[field['name']] = field['value']
-            except:  # noqa: E722 pylint: disable=bare-except
+            except BaseException:  # pylint: disable=bare-except
                 pass
         return data
 
@@ -107,11 +122,11 @@ class AlexaLogin():
         Returns false if unsuccesful getting json or the emails don't match
         """
         if self._session is None:
-            '''initiate session'''
+            #  initiate session
 
             self._session = requests.Session()
 
-            '''define session headers'''
+            #  define session headers
             self._session.headers = {
                 'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; Win64; x64) '
                                'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -140,18 +155,19 @@ class AlexaLogin():
             template = ("An exception of type {0} occurred."
                         " Arguments:\n{1!r}")
             message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.debug("Not logged in: ", message)
+            _LOGGER.debug("Not logged in: %s", message)
             return False
         if email.lower() == self._email.lower():
-            _LOGGER.debug("Logged in as {}".format(email))
+            _LOGGER.debug("Logged in as %s", email)
             return True
-        else:
-            _LOGGER.debug("Not logged in due to email mismatch")
-            self.reset_login()
-            return False
+        _LOGGER.debug("Not logged in due to email mismatch")
+        self.reset_login()
+        return False
 
     def login(self, cookies=None, captcha=None, securitycode=None,
               claimsoption=None, verificationcode=None):
+        # pylint: disable=too-many-branches,too-many-arguments,too-many-locals,
+        # pylint: disable=too-many-statements
         """Login to Amazon."""
         from bs4 import BeautifulSoup
         import pickle
@@ -162,17 +178,16 @@ class AlexaLogin():
             self.status['login_successful'] = True
             _LOGGER.debug("Log in successful with cookies")
             return
-        else:
-            _LOGGER.debug("No valid cookies for log in; using credentials")
+        _LOGGER.debug("No valid cookies for log in; using credentials")
         #  site = 'https://www.' + self._url + '/gp/sign-in.html'
         #  use alexa site instead
         site = 'https://alexa.' + self._url + '/api/devices-v2/device'
         if self._session is None:
-            '''initiate session'''
+            #  initiate session
 
             self._session = requests.Session()
 
-            '''define session headers'''
+            #  define session headers
             self._session.headers = {
                 'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; Win64; x64) '
                                'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -184,9 +199,9 @@ class AlexaLogin():
 
         if self._lastreq is not None:
             site = self._lastreq.url
-            _LOGGER.debug("Loaded last request to {} ".format(site))
+            _LOGGER.debug("Loaded last request to %s ", site)
             html = self._lastreq.text
-            '''get BeautifulSoup object of the html of the login page'''
+            #  get BeautifulSoup object of the html of the login page
             if self._debug:
                 with open(self._debugget, mode='wb') as localfile:
                     localfile.write(self._lastreq.content)
@@ -204,29 +219,29 @@ class AlexaLogin():
             resp = self._session.get(site)
             self._lastreq = resp
             if resp.history:
-                _LOGGER.debug("Get to {} was redirected to {}".format(
-                    site,
-                    resp.url))
+                _LOGGER.debug("Get to %s was redirected to %s",
+                              site,
+                              resp.url)
                 self._session.headers['Referer'] = resp.url
             else:
-                _LOGGER.debug("Get to {} was not redirected".format(site))
+                _LOGGER.debug("Get to %s was not redirected", site)
                 self._session.headers['Referer'] = site
 
             html = resp.text
-            '''get BeautifulSoup object of the html of the login page'''
+            #  get BeautifulSoup object of the html of the login page
             if self._debug:
                 with open(self._debugget, mode='wb') as localfile:
                     localfile.write(resp.content)
 
             soup = BeautifulSoup(html, 'html.parser')
-            '''scrape login page to get all the inputs required for login'''
+            #  scrape login page to get all the inputs required for login
             self._data = self.get_inputs(soup)
             site = soup.find('form', {'name': 'signIn'}).get('action')
 
         # _LOGGER.debug("Init Form Data: {}".format(self._data))
 
-        '''add username and password to the data for post request'''
-        '''check if there is an input field'''
+        #  add username and password to the data for post request
+        #  check if there is an input field
         if "email" in self._data:
             self._data['email'] = self._email.encode('utf-8')
         if "password" in self._data:
@@ -235,15 +250,15 @@ class AlexaLogin():
             self._data['rememberMe'] = "true".encode('utf-8')
 
         status = {}
-        _LOGGER.debug(("Preparing post to {} Captcha: {}"
-                       " SecurityCode: {} Claimsoption: {} "
-                       "VerificationCode: {}").format(
-            site,
-            captcha,
-            securitycode,
-            claimsoption,
-            verificationcode
-            ))
+        _LOGGER.debug(("Preparing post to %s Captcha: %s"
+                       " SecurityCode: %s Claimsoption: %s "
+                       "VerificationCode: %s"),
+                      site,
+                      captcha,
+                      securitycode,
+                      claimsoption,
+                      verificationcode
+                      )
         if (captcha is not None and 'guess' in self._data):
             self._data['guess'] = captcha.encode('utf-8')
         if (securitycode is not None and 'otpCode' in self._data):
@@ -258,9 +273,9 @@ class AlexaLogin():
         self._data.pop('', None)
 
         if self._debug:
-            _LOGGER.debug("Cookies: {}".format(self._session.cookies))
-            _LOGGER.debug("Submit Form Data: {}".format(self._data))
-            _LOGGER.debug("Header: {}".format(self._session.headers))
+            _LOGGER.debug("Cookies: %s", self._session.cookies)
+            _LOGGER.debug("Submit Form Data: %s", self._data)
+            _LOGGER.debug("Header: %s", self._session.headers)
 
         # submit post request with username/password and other needed info
         post_resp = self._session.post(site, data=self._data)
@@ -278,12 +293,12 @@ class AlexaLogin():
 
         # another login required and no captcha request? try once more.
         # This is a necessary hack as the first attempt always fails.
-        # TODO: Figure out how to remove this hack
+        # TODO: Figure out how to remove this hack pylint: disable=fixme
 
         if (login_tag is not None and captcha_tag is None):
             login_url = login_tag.get("action")
-            _LOGGER.debug("Performing second login to: {}".format(
-                login_url))
+            _LOGGER.debug("Performing second login to: %s",
+                          login_url)
             post_resp = self._session.post(login_url,
                                            data=self._data)
             if self._debug:
@@ -304,9 +319,9 @@ class AlexaLogin():
 
         if errorbox:
             error_message = errorbox.find('h4').string
-            for li in errorbox.findAll('li'):
-                error_message += li.find('span').string
-            _LOGGER.debug("Error message: {}".format(error_message))
+            for list_item in errorbox.findAll('li'):
+                error_message += list_item.find('span').string
+            _LOGGER.debug("Error message: %s", error_message)
             status['error_message'] = error_message
 
         if captcha_tag is not None:
@@ -333,8 +348,9 @@ class AlexaLogin():
                 valuemessage = ("Option: {} = `{}`.\n".format(
                     value, message)) if value != "" else ""
                 options_message += valuemessage
-            _LOGGER.debug("Verification method requested: {}".format(
-                claims_message, options_message))
+            _LOGGER.debug("Verification method requested: %s, %s",
+                          claims_message,
+                          options_message)
             status['claimspicker_required'] = True
             status['claimspicker_message'] = options_message
             self._data = self.get_inputs(post_soup, {'name': 'claimspicker'})
@@ -344,27 +360,26 @@ class AlexaLogin():
             self._data = self.get_inputs(post_soup, {'action': 'verify'})
         elif login_tag is not None:
             login_url = login_tag.get("action")
-            _LOGGER.debug("Another login requested to: {}".format(
-                login_url))
+            _LOGGER.debug("Another login requested to: %s", login_url)
             status['login_failed'] = True
 
         else:
             _LOGGER.debug("Captcha/2FA not requested; confirming login.")
             if self.test_loggedin():
-                _LOGGER.debug("Login confirmed; saving cookie to {}".format(
-                        self._cookiefile))
+                _LOGGER.debug("Login confirmed; saving cookie to %s",
+                              self._cookiefile)
                 status['login_successful'] = True
                 with open(self._cookiefile, 'wb') as myfile:
                     try:
                         pickle.dump(self._session.cookies, myfile)
-                    except Exception as ex:
+                    except OSError as ex:
                         template = ("An exception of type {0} occurred."
                                     " Arguments:\n{1!r}")
                         message = template.format(type(ex).__name__, ex.args)
                         _LOGGER.debug(
-                            "Error saving pickled cookie to {}: {}".format(
-                                self._cookiefile,
-                                message))
+                            "Error saving pickled cookie to %s: %s",
+                            self._cookiefile,
+                            message)
             else:
                 _LOGGER.debug("Login failed; check credentials")
                 status['login_failed'] = True
