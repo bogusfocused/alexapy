@@ -131,12 +131,7 @@ setup(
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
         "Development Status :: 3 - Alpha",
         "License :: OSI Approved :: Apache Software License",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: Implementation :: CPython",
-        "Programming Language :: Python :: Implementation :: PyPy"
-        "Topic :: Utilities",
+        "Topic :: Utilities"
     ],
     # $ setup.py publish support.
     cmdclass={
