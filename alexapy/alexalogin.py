@@ -111,7 +111,7 @@ class AlexaLogin():
             try:
                 data[field['name']] = ""
                 data[field['name']] = field['value']
-            except BaseException:  # pylint: disable=bare-except
+            except BaseException:
                 pass
         return data
 
