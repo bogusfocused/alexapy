@@ -193,7 +193,12 @@ class AlexaAPI():
                            customerId=customer_id,
                            textToSpeak=message)
 
-    def send_announcement(self, message, method="all", customer_id=None):
+    def send_announcement(self, message,
+                          method="all",
+                          title="Announcement",
+                          customer_id=None,
+                          targets=None):
+        # pylint: disable=too-many-arguments
         """Send announcment to Alexa devices.
 
         This uses the AlexaAnnouncement and allows visual display on the Show.
@@ -202,13 +207,18 @@ class AlexaAPI():
         Args:
         message (string): The message to speak or display.
         method (string): speak, show, or all
+        title (string): title to display on Echo show
         customerId (string): CustomerId to use for authorization. When none
                              specified this defaults to the device owner. Used
                              with households where others may have their own
                              music.
+        targets (list(string)): List of serialNumber or accountName to send the
+                                announcement to. Only those in this AlexaAPI
+                                account will be searched. If None, announce
+                                will be self.
         """
         display = ({"title": "", "body": ""} if method.lower() == "speak" else
-                   {"title": "Alexa Announcement", "body": message})
+                   {"title": title, "body": message})
         speak = ({"type": "text", "value": ""} if method.lower() == "show" else
                  {"type": "text", "value": message})
         content = [{"locale": "en-US",
@@ -219,6 +229,12 @@ class AlexaAPI():
             # Build group of devices based off _cluster_members
             for dev in AlexaAPI.devices:
                 if dev['serialNumber'] in self._device._cluster_members:
+                    devices.append({"deviceSerialNumber": dev['serialNumber'],
+                                    "deviceTypeId": dev['deviceType']})
+        elif targets and isinstance(targets, list):
+            for dev in AlexaAPI.devices:
+                if (dev['serialNumber'] in targets or
+                        dev['accountName'] in targets):
                     devices.append({"deviceSerialNumber": dev['serialNumber'],
                                     "deviceTypeId": dev['deviceType']})
         else:
@@ -234,7 +250,7 @@ class AlexaAPI():
                            target=target)
 
     def send_mobilepush(self, message, title="AlexaAPI Message",
-                        target=None):
+                        customer_id=None):
         """Send announcment to Alexa devices.
 
         Push a message to mobile devices with the Alexa App. This probably
@@ -243,11 +259,12 @@ class AlexaAPI():
         Args:
         message (string): The message to push to the mobile device.
         title (string): Title for push notification
-        target (string): CustomerId to use for sending. When none
-                         specified this defaults to the device owner.
+        customer_id (string): CustomerId to use for sending. When none
+                              specified this defaults to the device owner.
         """
         self.send_sequence("Alexa.Notifications.SendMobilePush",
-                           customerId=(target if target is not None else
+                           customerId=(customer_id if customer_id is not None
+                                       else
                                        self._device._device_owner_customer_id),
                            notificationMessage=message,
                            alexaUrl="#v2/behaviors",

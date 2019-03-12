@@ -9,9 +9,12 @@ init:
 	pip3 install pip pipenv
 	pipenv lock
 	pipenv install --three --dev
-lint:
+lint: flake8 docstyle pylint
+flake8:
 	pipenv run flake8 alexapy
+docstyle:
 	pipenv run pydocstyle alexapy
+pylint:
 	pipenv run pylint alexapy
 publish:
 	pipenv run python setup.py sdist bdist_wheel
