@@ -27,11 +27,11 @@ class WebSocket_EchoClient(Thread):
         Thread.__init__(self)
         self._session = login.session
         self._cookies = self._session.cookies.get_dict()
-        cookies = "dp-gw-na-js"
+        cookies = ""
         for cookie in self._cookies:
             cookies += cookies + "; "
-        cookies = "Cookie: " + cookie
-        url += url + str(cookies['ubid-main'])
+        cookies = "Cookie: " + cookies
+        url += url + str(self._cookies['ubid-main'])
         url += "-" + str(int(time.time())) + "000"
         self.msg_callback = msg_callback
         websocket.enableTrace(True)
