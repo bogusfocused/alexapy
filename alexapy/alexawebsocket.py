@@ -21,15 +21,18 @@ OPCODE_BINARY = 0x2
 class WebSocket_EchoClient(Thread):
     """WebSocket Client Class for Echo Devices."""
 
-    def __init__(self, login, url, msg_callback):
+    def __init__(self, login, msg_callback):
         """Init for threading and WebSocket Connection."""
+        url = "wss://dp-gw-na-js.amazon.com/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial="
         Thread.__init__(self)
         self._session = login.session
         self._cookies = self._session.cookies.get_dict()
-        cookies = ""
+        cookies = "dp-gw-na-js"
         for cookie in self._cookies:
             cookies += cookies + "; "
         cookies = "Cookie: " + cookie
+        url += url + str(cookies['ubid-main'])
+        url += "-" + str(int(time.time())) + "000"
         self.msg_callback = msg_callback
         websocket.enableTrace(True)
         ws = websocket.WebSocketApp(url,
