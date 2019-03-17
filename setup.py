@@ -33,7 +33,7 @@ REQUIRED = [
     'beautifulsoup4',
     'simplejson',
     'requests',
-    'websocket_client'
+    'websocket_client>=0.55.0'
 ]
 
 # What packages are optional?
