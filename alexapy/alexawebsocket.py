@@ -28,8 +28,8 @@ class WebSocket_EchoClient(Thread):
         self._session = login.session
         self._cookies = self._session.cookies.get_dict()
         cookies = ""
-        for cookie in self._cookies:
-            cookies += cookies + "; "
+        for key, value in self._cookies.items():
+            cookies += key + "=" + value + "; "
         cookies = "Cookie: " + cookies
         url += url + str(self._cookies['ubid-main'])
         url += "-" + str(int(time.time())) + "000"
