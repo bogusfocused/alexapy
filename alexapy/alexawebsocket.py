@@ -23,7 +23,9 @@ class WebSocket_EchoClient(Thread):
 
     def __init__(self, login, msg_callback):
         """Init for threading and WebSocket Connection."""
-        url = "wss://dp-gw-na-js.amazon.com/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial="
+        url = ("wss://dp-gw-na-js.{}/?x-amz-device-type={}"
+               "&x-amz-device-serial=").format(login.url,
+                                               'ALEGCNGL9K0HM')
         Thread.__init__(self)
         self._session = login.session
         self._cookies = self._session.cookies.get_dict()
@@ -31,7 +33,7 @@ class WebSocket_EchoClient(Thread):
         for key, value in self._cookies.items():
             cookies += key + "=" + value + "; "
         cookies = "Cookie: " + cookies
-        url += url + str(self._cookies['ubid-main'])
+        url += str(self._cookies['ubid-main'])
         url += "-" + str(int(time.time())) + "000"
         self.msg_callback = msg_callback
         ws = websocket.WebSocketApp(url,
@@ -54,6 +56,7 @@ class WebSocket_EchoClient(Thread):
         """Handle New Message."""
         _LOGGER.debug("Received WebSocket MSG.")
         msg = message.decode('utf-8')
+        _LOGGER.debug("Received %s", message)
         message_obj = Message()
         message_obj.service = msg[-4:]
         idx = 0
@@ -118,9 +121,9 @@ class WebSocket_EchoClient(Thread):
                         if payload is None:
                             payload = msg[idx:-4]
                         message_obj.content.payload = payload
-                        json_payload = json.loads(payload)
-                        json_payload['payload'] = json.loads(
-                            json_payload['payload'])
+                        message_obj.json_payload = json.loads(payload)
+                        message_obj.json_payload['payload'] = json.loads(
+                            message_obj.json_payload['payload'])
         self.msg_callback(message_obj)
 
     def on_error(self, ws, error):
@@ -130,6 +133,7 @@ class WebSocket_EchoClient(Thread):
     def on_close(self, ws):
         """Handle WebSocket Close."""
         _LOGGER.debug("WebSocket Connection Closed.")
+        ws.close()
 
     def on_open(self, ws):
         """Handle WebSocket Open."""
@@ -212,3 +216,4 @@ class Message:
         self.messageId = 0
         self.moreFlag = ""
         self.seq = 0
+        self.json_payload = None

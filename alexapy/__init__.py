@@ -9,6 +9,7 @@ https://gitlab.com/keatontaylor/alexapy
 """
 from .alexalogin import AlexaLogin
 from .alexaapi import AlexaAPI
+from .alexawebsocket import WebSocket_EchoClient
 from .__version__ import __version__
 
-__all__ = ['AlexaLogin', 'AlexaAPI', '__version__']
+__all__ = ['AlexaLogin', 'AlexaAPI', 'WebSocket_EchoClient', '__version__']
