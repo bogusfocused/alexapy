@@ -32,7 +32,8 @@ VERSION = None
 REQUIRED = [
     'beautifulsoup4',
     'simplejson',
-    'requests'
+    'requests',
+    'websocket_client'
 ]
 
 # What packages are optional?
