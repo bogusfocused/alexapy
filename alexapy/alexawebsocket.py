@@ -34,7 +34,6 @@ class WebSocket_EchoClient(Thread):
         url += url + str(self._cookies['ubid-main'])
         url += "-" + str(int(time.time())) + "000"
         self.msg_callback = msg_callback
-        websocket.enableTrace(True)
         ws = websocket.WebSocketApp(url,
                                     on_message=lambda ws, msg: self.on_message(
                                         ws, msg),
@@ -53,6 +52,7 @@ class WebSocket_EchoClient(Thread):
 
     def on_message(self, ws, message):
         """Handle New Message."""
+        _LOGGER.debug("Received WebSocket MSG.")
         msg = message.decode('utf-8')
         message_obj = Message()
         message_obj.service = msg[-4:]
@@ -76,9 +76,8 @@ class WebSocket_EchoClient(Thread):
             idx += 4
 
             if message_obj.channel == "0x00000361":
-                print("Gateway Handshake Messsage Received")
+                _LOGGER.debug("Received ACK MSG for Registration.")
                 if message_obj.content.messageType == "ACK":
-                    print("Gateway Handsake Message Type: ACK")
                     length = int(msg[idx:idx+10], 16)
                     idx += 11
                     message_obj.content.protocolVersion = msg[idx:idx+length]
@@ -95,16 +94,14 @@ class WebSocket_EchoClient(Thread):
                     idx += 19
 
             elif message_obj.channel == "0x00000362":
-                print("Gateway Message Received")
+                _LOGGER.debug("Received Standard MSG.")
                 if message_obj.content.messageType == "GWM":
-                    print("Gateway Message Type: GWM")
                     message_obj.content.subMessageType = msg[idx:idx+3]
                     idx += 4
                     message_obj.content.channel = msg[idx:idx+10]
                     idx += 11
 
                     if message_obj.content.channel == "0x0000b479":
-                        print("Message Contains DeeWebsiteMessage")
                         length = int(msg[idx:idx+10], 16)
                         idx += 11
                         message_obj.content.destIdUrn = msg[idx:idx+length]
@@ -136,6 +133,7 @@ class WebSocket_EchoClient(Thread):
 
     def on_open(self, ws):
         """Handle WebSocket Open."""
+        _LOGGER.debug("Initating Handshake.")
         ws.send("0x99d4f71a 0x0000001d A:HTUNE", OPCODE_BINARY)
         time.sleep(1)
         ws.send(self._encodeWSHandshake(), OPCODE_BINARY)
@@ -145,6 +143,7 @@ class WebSocket_EchoClient(Thread):
         ws.send(self._encodeGWRegister(), OPCODE_BINARY)
 
     def _encodeWSHandshake(self):
+        _LOGGER.debug("Encoding WebSocket Handshake MSG.")
         msg = "0xa6f6a951 "
         msg += "0x0000009c "
         msg += "{\"protocolName\":\"A:H\",\"parameters\":"
@@ -153,6 +152,7 @@ class WebSocket_EchoClient(Thread):
         return msg
 
     def _encodeGWHandshake(self):
+        _LOGGER.debug("Encoding Gateway Handshake MSG.")
         msg = "MSG 0x00000361 "  # MSG channel
         msg += "0x360da09c f 0x00000001 "  # Message number with no cont
         msg += "0x019f0778 "  # Checksum
@@ -164,6 +164,7 @@ class WebSocket_EchoClient(Thread):
         return msg
 
     def _encodeGWRegister(self):
+        _LOGGER.debug("Encoding Gateway Register MSG.")
         msg = "MSG 0x00000362 "  # MSG channel
         msg += "0x33667875 f 0x00000001 "  # Message number with no cont
         msg += "0xfd0a5afa "  # Checksum
