@@ -7,18 +7,19 @@ Python Package for controlling Alexa devices (echo dot, etc) programmatically.
 For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
-import websocket
-from threading import Thread
-import time
-import ssl
 import json
 import logging
+import ssl
+import time
+from threading import Thread
+
+import websocket
 
 _LOGGER = logging.getLogger(__name__)
 OPCODE_BINARY = 0x2
 
 
-class WebSocket_EchoClient(Thread):
+class WebsocketEchoClient(Thread):
     """WebSocket Client Class for Echo Devices."""
 
     def __init__(self, login, msg_callback):
@@ -36,23 +37,21 @@ class WebSocket_EchoClient(Thread):
         url += str(self._cookies['ubid-main'])
         url += "-" + str(int(time.time())) + "000"
         self.msg_callback = msg_callback
-        ws = websocket.WebSocketApp(url,
-                                    on_message=lambda ws, msg: self.on_message(
-                                        ws, msg),
-                                    on_error=lambda ws, msg: self.on_error(
-                                        ws, msg),
-                                    on_close=lambda ws:     self.on_close(
-                                        ws),
-                                    on_open=lambda ws:     self.on_open(
-                                        ws),
-                                    header=[cookies])
-        self.ws = ws
+        websocket_ = websocket.WebSocketApp(url,
+                                            on_message=self.on_message,
+                                            on_error=self.on_error,
+                                            on_close=self.on_close,
+                                            on_open=self.on_open,
+                                            header=[cookies])
+        self.websocket = websocket_
+        Thread(target=self.run).start()
 
     def run(self):
         """Start WebSocket Listener."""
-        self.ws.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
+        self.websocket.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
 
-    def on_message(self, ws, message):
+    def on_message(self, message):
+        # pylint: disable=too-many-statements
         """Handle New Message."""
         _LOGGER.debug("Received WebSocket MSG.")
         msg = message.decode('utf-8')
@@ -61,13 +60,13 @@ class WebSocket_EchoClient(Thread):
         message_obj.service = msg[-4:]
         idx = 0
         if message_obj.service == "FABE":
-            message_obj.messageType = msg[:3]
+            message_obj.message_type = msg[:3]
             idx += 4
             message_obj.channel = msg[idx:idx+10]
             idx += 11
-            message_obj.messageId = msg[idx:idx+10]
+            message_obj.message_id = msg[idx:idx+10]
             idx += 11
-            message_obj.moreFlag = msg[idx:idx+1]
+            message_obj.more_flag = msg[idx:idx+1]
             idx += 2
             message_obj.seq = msg[idx:idx+10]
             idx += 11
@@ -75,15 +74,15 @@ class WebSocket_EchoClient(Thread):
             idx += 11
             # currently not used: long contentLength = readHex(data, idx, 10);
             idx += 11
-            message_obj.content.messageType = msg[idx:idx+3]
+            message_obj.content.message_type = msg[idx:idx+3]
             idx += 4
 
             if message_obj.channel == "0x00000361":
                 _LOGGER.debug("Received ACK MSG for Registration.")
-                if message_obj.content.messageType == "ACK":
+                if message_obj.content.message_type == "ACK":
                     length = int(msg[idx:idx+10], 16)
                     idx += 11
-                    message_obj.content.protocolVersion = msg[idx:idx+length]
+                    message_obj.content.protocol_version = msg[idx:idx+length]
                     idx += length + 1
                     length = int(msg[idx:idx+10], 16)
                     idx += 11
@@ -91,15 +90,15 @@ class WebSocket_EchoClient(Thread):
                     idx += length + 1
                     message_obj.content.established = msg[idx:idx+10]
                     idx += 11
-                    message_obj.content.timestampINI = msg[idx:idx+18]
+                    message_obj.content.timestamp_ini = msg[idx:idx+18]
                     idx += 19
-                    message_obj.content.timestampACK = msg[idx:idx+18]
+                    message_obj.content.timestamp_ack = msg[idx:idx+18]
                     idx += 19
 
             elif message_obj.channel == "0x00000362":
                 _LOGGER.debug("Received Standard MSG.")
-                if message_obj.content.messageType == "GWM":
-                    message_obj.content.subMessageType = msg[idx:idx+3]
+                if message_obj.content.message_type == "GWM":
+                    message_obj.content.submessage_type = msg[idx:idx+3]
                     idx += 4
                     message_obj.content.channel = msg[idx:idx+10]
                     idx += 11
@@ -107,17 +106,17 @@ class WebSocket_EchoClient(Thread):
                     if message_obj.content.channel == "0x0000b479":
                         length = int(msg[idx:idx+10], 16)
                         idx += 11
-                        message_obj.content.destIdUrn = msg[idx:idx+length]
+                        message_obj.content.dest_id_urn = msg[idx:idx+length]
                         idx += length + 1
                         length = int(msg[idx:idx+10], 16)
                         idx += 11
-                        idData = msg[idx:idx+length]
+                        id_data = msg[idx:idx+length]
                         idx += length + 1
-                        idDataElements = idData.split(" ", 2)
-                        message_obj.content.deviceIdUrn = idDataElements[0]
+                        id_data_elements = id_data.split(" ", 2)
+                        message_obj.content.device_id_urn = id_data_elements[0]
                         payload = None
-                        if len(idDataElements) == 2:
-                            payload = idDataElements[1]
+                        if len(id_data_elements) == 2:
+                            payload = id_data_elements[1]
                         if payload is None:
                             payload = msg[idx:-4]
                         message_obj.content.payload = payload
@@ -126,27 +125,29 @@ class WebSocket_EchoClient(Thread):
                             message_obj.json_payload['payload'])
         self.msg_callback(message_obj)
 
-    def on_error(self, ws, error):
+    def on_error(self, error):
+        # pylint: disable=no-self-use
         """Handle WebSocket Error."""
-        _LOGGER.error("WebSocket Error {}".format(error))
+        _LOGGER.error("WebSocket Error %s", error)
 
-    def on_close(self, ws):
+    def on_close(self):
         """Handle WebSocket Close."""
         _LOGGER.debug("WebSocket Connection Closed.")
-        ws.close()
+        self.websocket.close()
 
-    def on_open(self, ws):
+    def on_open(self):
         """Handle WebSocket Open."""
         _LOGGER.debug("Initating Handshake.")
-        ws.send("0x99d4f71a 0x0000001d A:HTUNE", OPCODE_BINARY)
+        self.websocket.send("0x99d4f71a 0x0000001d A:HTUNE", OPCODE_BINARY)
         time.sleep(1)
-        ws.send(self._encodeWSHandshake(), OPCODE_BINARY)
+        self.websocket.send(self._encode_ws_handshake(), OPCODE_BINARY)
         time.sleep(1)
-        ws.send(self._encodeGWHandshake(), OPCODE_BINARY)
+        self.websocket.send(self._encode_gw_handshake(), OPCODE_BINARY)
         time.sleep(1)
-        ws.send(self._encodeGWRegister(), OPCODE_BINARY)
+        self.websocket.send(self._encode_gw_register(), OPCODE_BINARY)
 
-    def _encodeWSHandshake(self):
+    def _encode_ws_handshake(self):
+        # pylint: disable=no-self-use
         _LOGGER.debug("Encoding WebSocket Handshake MSG.")
         msg = "0xa6f6a951 "
         msg += "0x0000009c "
@@ -155,7 +156,8 @@ class WebSocket_EchoClient(Thread):
         msg += "AlphaProtocolHandler.maxFragmentSize\":\"16000\"}}TUNE"
         return msg
 
-    def _encodeGWHandshake(self):
+    def _encode_gw_handshake(self):
+        # pylint: disable=no-self-use
         _LOGGER.debug("Encoding Gateway Handshake MSG.")
         msg = "MSG 0x00000361 "  # MSG channel
         msg += "0x360da09c f 0x00000001 "  # Message number with no cont
@@ -167,7 +169,8 @@ class WebSocket_EchoClient(Thread):
         msg += "END FABE"
         return msg
 
-    def _encodeGWRegister(self):
+    def _encode_gw_register(self):
+        # pylint: disable=no-self-use
         _LOGGER.debug("Encoding Gateway Register MSG.")
         msg = "MSG 0x00000362 "  # MSG channel
         msg += "0x33667875 f 0x00000001 "  # Message number with no cont
@@ -184,36 +187,38 @@ class WebSocket_EchoClient(Thread):
 
 
 class Content:
+    # pylint: disable=too-few-public-methods, too-many-instance-attributes
     """Content Data Class."""
 
     def __init__(self):
         """Init for data."""
-        self.messageType = ""
-        self.protocolVersion = ""
-        self.connectionUUID = ""
+        self.message_type = ""
+        self.protocol_version = ""
+        self.connection_uuid = ""
         self.established = 0
-        self.timestampINI = 0
-        self.timestampACK = 0
-        self.subMessageType = ""
+        self.timestamp_ini = 0
+        self.timestamp_ack = 0
+        self.submessage_type = ""
         self.channel = 0
-        self.destIdUrn = ""
-        self.deviceIdUrn = ""
+        self.dest_id_urn = ""
+        self.device_id_urn = ""
         self.payload = ""
-        self.payloadData = bytearray()
+        self.payload_data = bytearray()
 
 
 class Message:
+    # pylint: disable=too-few-public-methods, too-many-instance-attributes
     """Message Data Class."""
 
     def __init__(self):
         """Init for data."""
         self.service = ""
         self.content = Content()
-        self.contentTune = ""
-        self.messageType = ""
+        self.content_tune = ""
+        self.message_type = ""
         self.channel = 0
         self.checksum = 0
-        self.messageId = 0
-        self.moreFlag = ""
+        self.message_id = 0
+        self.more_flag = ""
         self.seq = 0
         self.json_payload = None
