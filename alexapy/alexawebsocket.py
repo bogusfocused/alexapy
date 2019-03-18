@@ -20,9 +20,15 @@ OPCODE_BINARY = 0x2
 
 
 class WebsocketEchoClient(Thread):
-    """WebSocket Client Class for Echo Devices."""
+    """WebSocket Client Class for Echo Devices.
 
-    def __init__(self, login, msg_callback):
+    Based on code from openHAB:
+    https://github.com/openhab/openhab2-addons/blob/master/addons/binding/org.openhab.binding.amazonechocontrol/src/main/java/org/openhab/binding/amazonechocontrol/internal/WebSocketConnection.java
+    which is further based on:
+    https://github.com/Apollon77/alexa-remote/blob/master/alexa-wsmqtt.js
+    """
+
+    def __init__(self, login, msg_callback, close_callback, error_callback):
         """Init for threading and WebSocket Connection."""
         url = ("wss://dp-gw-na-js.{}/?x-amz-device-type={}"
                "&x-amz-device-serial=").format(login.url,
@@ -37,6 +43,8 @@ class WebsocketEchoClient(Thread):
         url += str(self._cookies['ubid-main'])
         url += "-" + str(int(time.time())) + "000"
         self.msg_callback = msg_callback
+        self.close_callback = close_callback
+        self.error_callback = error_callback
         websocket_ = websocket.WebSocketApp(url,
                                             on_message=self.on_message,
                                             on_error=self.on_error,
@@ -133,14 +141,16 @@ class WebsocketEchoClient(Thread):
         _LOGGER.debug("Got Pong MSG from Server")
 
     def on_error(self, error):
-        # pylint: disable=no-self-use
         """Handle WebSocket Error."""
         _LOGGER.error("WebSocket Error %s", error)
+        self.websocket.close()
+        self.error_callback(error)
 
     def on_close(self):
         """Handle WebSocket Close."""
         _LOGGER.debug("WebSocket Connection Closed.")
         self.websocket.close()
+        self.close_callback()
 
     def on_open(self):
         """Handle WebSocket Open."""
