@@ -50,6 +50,7 @@ class WebsocketEchoClient(Thread):
         elif 'ubid-main' in self._cookies:
             url += str(self._cookies['ubid-main'])
         url += "-" + str(int(time.time())) + "000"
+        _LOGGER.debug("Connecting to %s with %s", url, cookies)
         self.msg_callback = msg_callback
         self.close_callback = close_callback
         self.error_callback = error_callback
