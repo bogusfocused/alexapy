@@ -30,8 +30,13 @@ class WebsocketEchoClient(Thread):
 
     def __init__(self, login, msg_callback, close_callback, error_callback):
         """Init for threading and WebSocket Connection."""
-        url = ("wss://dp-gw-na-js.{}/?x-amz-device-type={}"
-               "&x-amz-device-serial=").format(login.url,
+        if login.url.lower() == 'amazon.com':
+            subdomain = 'dp-gw-na-js'
+        else:
+            subdomain = 'dp-gw-na'
+        url = ("wss://{}.{}/?x-amz-device-type={}"
+               "&x-amz-device-serial=").format(subdomain,
+                                               login.url,
                                                'ALEGCNGL9K0HM')
         Thread.__init__(self)
         self._session = login.session
@@ -40,7 +45,10 @@ class WebsocketEchoClient(Thread):
         for key, value in self._cookies.items():
             cookies += key + "=" + value + "; "
         cookies = "Cookie: " + cookies
-        url += str(self._cookies['ubid-main'])
+        if 'ubid-abcde' in self._cookies:
+            url += str(self._cookies['ubid-abcde'])
+        elif 'ubid-main' in self._cookies:
+            url += str(self._cookies['ubid-main'])
         url += "-" + str(int(time.time())) + "000"
         self.msg_callback = msg_callback
         self.close_callback = close_callback
