@@ -38,7 +38,6 @@ class WebsocketEchoClient(Thread):
                "&x-amz-device-serial=").format(subdomain,
                                                login.url,
                                                'ALEGCNGL9K0HM')
-        Thread.__init__(self)
         self._session = login.session
         self._cookies = self._session.cookies.get_dict()
         cookies = ""
@@ -61,6 +60,7 @@ class WebsocketEchoClient(Thread):
                                             on_open=self.on_open,
                                             header=[cookies])
         self.websocket = websocket_
+        Thread.__init__(self)
         Thread(target=self.run).start()
 
     def run(self):
