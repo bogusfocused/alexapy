@@ -9,6 +9,7 @@ https://gitlab.com/keatontaylor/alexapy
 """
 import json
 import logging
+from typing import Any, Dict, List, Union  # noqa pylint: disable=unused-import
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class AlexaAPI():
     login (AlexaLogin): Successfully logged in AlexaLogin
     """
 
-    devices = {}  # dictionary for lookup of deviceId/deviceType
+    devices = []  # type: List[Dict[str, Union[Any, None, List]]]
 
     def __init__(self, device, login):
         """Initialize Alexa device."""
