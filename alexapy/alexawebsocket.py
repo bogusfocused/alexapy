@@ -61,6 +61,7 @@ class WebsocketEchoClient(Thread):
                                             on_pong=self.on_pong,
                                             header=[cookies])
         self.websocket = websocket_
+        Thread.__init__(self)
         self.start()
 
     def run(self):
