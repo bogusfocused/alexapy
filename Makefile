@@ -9,7 +9,7 @@ init:
 	pip3 install pip pipenv
 	pipenv lock
 	pipenv install --three --dev
-lint: flake8 docstyle pylint
+lint: flake8 docstyle pylint typing
 flake8:
 	pipenv run flake8 alexapy
 docstyle:
