@@ -145,7 +145,8 @@ class WebsocketEchoClient(Thread):
                             message_obj.json_payload['payload'])
         self.msg_callback(message_obj)
 
-    def on_pong(self, ws, msg):
+    def on_pong(self, msg):
+        # pylint: disable=unused-argument, no-self-use
         """Handle Pong (debug only)."""
         _LOGGER.debug("Got Pong MSG from Server")
 
