@@ -42,13 +42,16 @@ class WebsocketEchoClient(Thread):
                                             on_error=self.on_error,
                                             on_close=self.on_close,
                                             on_open=self.on_open,
+                                            on_pong=self.on_pong,
                                             header=[cookies])
         self.websocket = websocket_
-        Thread(target=self.run).start()
+        self.start()
 
     def run(self):
         """Start WebSocket Listener."""
-        self.websocket.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
+        self.websocket.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE},
+                                   ping_interval=180,
+                                   ping_timeout=20)
 
     def on_message(self, message):
         # pylint: disable=too-many-statements
@@ -124,6 +127,10 @@ class WebsocketEchoClient(Thread):
                         message_obj.json_payload['payload'] = json.loads(
                             message_obj.json_payload['payload'])
         self.msg_callback(message_obj)
+
+    def on_pong(self, ws, msg):
+        """Handle Pong (debug only)."""
+        _LOGGER.debug("Got Pong MSG from Server")
 
     def on_error(self, error):
         # pylint: disable=no-self-use
