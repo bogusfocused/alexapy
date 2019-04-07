@@ -379,12 +379,13 @@ class AlexaAPI():
 
     @staticmethod
     @_catch_all_exceptions
-    def get_automations(login):
+    def get_automations(login, items=1000):
         """Identify all Alexa automations."""
         session = login.session
         url = login.url
         response = session.get('https://alexa.' + url +
-                               '/api/behaviors/automations')
+                               '/api/behaviors/automations' + '?limit=' +
+                               str(items))
         return response.json()
 
     @staticmethod
