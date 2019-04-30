@@ -95,7 +95,8 @@ class AlexaAPI():
         operation_payload = {
             "deviceType": self._device._device_type,
             "deviceSerialNumber": self._device.unique_id,
-            "locale": "en-US",
+            "locale": (self._device._locale if self._device._locale
+                       else "en-US"),
             "customerId": self._device._device_owner_customer_id
             }
         if kwargs is not None:
@@ -236,7 +237,8 @@ class AlexaAPI():
                    {"title": title, "body": message})
         speak = ({"type": "text", "value": ""} if method.lower() == "show" else
                  {"type": "text", "value": message})
-        content = [{"locale": "en-US",
+        content = [{"locale": (self._device._locale if self._device._locale
+                               else "en-US"),
                     "display": display,
                     "speak": speak}]
         devices = []
@@ -376,6 +378,16 @@ class AlexaAPI():
         response = session.get('https://alexa.' + url + '/api/activities?'
                                'startTime=&size=' + str(items) + '&offset=1')
         return response.json()['activities']
+
+    @staticmethod
+    @_catch_all_exceptions
+    def get_device_preferences(login):
+        """Identify all Alexa device professions."""
+        session = login.session
+        url = login.url
+        response = session.get('https://alexa.' + url +
+                               '/api/device-preferences')
+        return response.json()
 
     @staticmethod
     @_catch_all_exceptions
