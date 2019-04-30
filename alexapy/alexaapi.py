@@ -133,12 +133,15 @@ class AlexaAPI():
             """Search node and replace with this Alexa's device_info."""
             if 'devices' in node:
                 list(map(_populate_device_info, node['devices']))
-            if ('deviceType' in node and
-                    node['deviceType'] == 'ALEXA_CURRENT_DEVICE_TYPE'):
-                (node['deviceType']) = self._device._device_type
-            if ('deviceSerialNumber' in node and
-                    node['deviceSerialNumber'] == 'ALEXA_CURRENT_DSN'):
-                (node['deviceSerialNumber']) = self._device.unique_id
+            elif 'operationPayload' in node:
+                _populate_device_info(node['operationPayload'])
+            else:
+                if ('deviceType' in node and
+                        node['deviceType'] == 'ALEXA_CURRENT_DEVICE_TYPE'):
+                    (node['deviceType']) = self._device._device_type
+                if ('deviceSerialNumber' in node and
+                        node['deviceSerialNumber'] == 'ALEXA_CURRENT_DSN'):
+                    (node['deviceSerialNumber']) = self._device.unique_id
         automations = AlexaAPI.get_automations(self._login)
         automation_id = None
         sequence = None
@@ -162,16 +165,16 @@ class AlexaAPI():
                     # "@type":"com.amazon.alexa.behaviors.model.ParallelNode",
                     # nested nodesToExecute
                     for subnode in node['nodesToExecute']:
-                        _populate_device_info(subnode['operationPayload'])
+                        _populate_device_info(subnode)
                 else:
                     # "@type":"com.amazon.alexa.behaviors.model.SerialNode",
                     # nonNested nodesToExecute
-                    _populate_device_info(node['operationPayload'])
+                    _populate_device_info(node)
                 new_nodes.append(node)
             sequence['startNode']['nodesToExecute'] = new_nodes
         else:
             # Single entry with no nodesToExecute
-            _populate_device_info(sequence['startNode']['operationPayload'])
+            _populate_device_info(sequence['startNode'])
         data = {
             "behaviorId": automation_id,
             "sequenceJson": json.dumps(sequence),
