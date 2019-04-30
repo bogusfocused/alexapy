@@ -142,6 +142,11 @@ class AlexaAPI():
                 if ('deviceSerialNumber' in node and
                         node['deviceSerialNumber'] == 'ALEXA_CURRENT_DSN'):
                     (node['deviceSerialNumber']) = self._device.unique_id
+                if ('locale' in node and
+                        node['locale'] == 'ALEXA_CURRENT_LOCALE'):
+                    (node['locale']) = (self._device._locale if
+                                        self._device._locale
+                                        else "en-US")
         automations = AlexaAPI.get_automations(self._login)
         automation_id = None
         sequence = None
