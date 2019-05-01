@@ -95,7 +95,8 @@ class AlexaAPI():
         operation_payload = {
             "deviceType": self._device._device_type,
             "deviceSerialNumber": self._device.unique_id,
-            "locale": "en-US",
+            "locale": (self._device._locale if self._device._locale
+                       else "en-US"),
             "customerId": self._device._device_owner_customer_id
             }
         if kwargs is not None:
@@ -132,12 +133,20 @@ class AlexaAPI():
             """Search node and replace with this Alexa's device_info."""
             if 'devices' in node:
                 list(map(_populate_device_info, node['devices']))
-            if ('deviceType' in node and
-                    node['deviceType'] == 'ALEXA_CURRENT_DEVICE_TYPE'):
-                (node['deviceType']) = self._device._device_type
-            if ('deviceSerialNumber' in node and
-                    node['deviceSerialNumber'] == 'ALEXA_CURRENT_DSN'):
-                (node['deviceSerialNumber']) = self._device.unique_id
+            elif 'operationPayload' in node:
+                _populate_device_info(node['operationPayload'])
+            else:
+                if ('deviceType' in node and
+                        node['deviceType'] == 'ALEXA_CURRENT_DEVICE_TYPE'):
+                    (node['deviceType']) = self._device._device_type
+                if ('deviceSerialNumber' in node and
+                        node['deviceSerialNumber'] == 'ALEXA_CURRENT_DSN'):
+                    (node['deviceSerialNumber']) = self._device.unique_id
+                if ('locale' in node and
+                        node['locale'] == 'ALEXA_CURRENT_LOCALE'):
+                    (node['locale']) = (self._device._locale if
+                                        self._device._locale
+                                        else "en-US")
         automations = AlexaAPI.get_automations(self._login)
         automation_id = None
         sequence = None
@@ -161,16 +170,16 @@ class AlexaAPI():
                     # "@type":"com.amazon.alexa.behaviors.model.ParallelNode",
                     # nested nodesToExecute
                     for subnode in node['nodesToExecute']:
-                        _populate_device_info(subnode['operationPayload'])
+                        _populate_device_info(subnode)
                 else:
                     # "@type":"com.amazon.alexa.behaviors.model.SerialNode",
                     # nonNested nodesToExecute
-                    _populate_device_info(node['operationPayload'])
+                    _populate_device_info(node)
                 new_nodes.append(node)
             sequence['startNode']['nodesToExecute'] = new_nodes
         else:
             # Single entry with no nodesToExecute
-            _populate_device_info(sequence['startNode']['operationPayload'])
+            _populate_device_info(sequence['startNode'])
         data = {
             "behaviorId": automation_id,
             "sequenceJson": json.dumps(sequence),
@@ -236,7 +245,8 @@ class AlexaAPI():
                    {"title": title, "body": message})
         speak = ({"type": "text", "value": ""} if method.lower() == "show" else
                  {"type": "text", "value": message})
-        content = [{"locale": "en-US",
+        content = [{"locale": (self._device._locale if self._device._locale
+                               else "en-US"),
                     "display": display,
                     "speak": speak}]
         devices = []
@@ -376,6 +386,16 @@ class AlexaAPI():
         response = session.get('https://alexa.' + url + '/api/activities?'
                                'startTime=&size=' + str(items) + '&offset=1')
         return response.json()['activities']
+
+    @staticmethod
+    @_catch_all_exceptions
+    def get_device_preferences(login):
+        """Identify all Alexa device professions."""
+        session = login.session
+        url = login.url
+        response = session.get('https://alexa.' + url +
+                               '/api/device-preferences')
+        return response.json()
 
     @staticmethod
     @_catch_all_exceptions
