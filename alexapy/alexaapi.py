@@ -426,3 +426,47 @@ class AlexaAPI():
                                          ['serialNumber']),
                         'timestamp': last_activity['creationTimestamp']}
         return None
+
+    @staticmethod
+    @_catch_all_exceptions
+    def get_guard_state(login, entity_id):
+        """Get state of Alexa guard.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+        entity_id (string): applianceId of RedRock Panel
+        """
+        session = login.session
+        url = login.url
+        data = {"stateRequests": [{"entityId": entity_id,
+                                   "entityType": "APPLIANCE"}]}
+        response = session.post('https://alexa.' + url +
+                                '/api/phoenix/state',
+                                json=data)
+        _LOGGER.debug("Response: %s",
+                      response.json())
+        return response.json()
+
+    @staticmethod
+    @_catch_all_exceptions
+    def set_guard_state(login, entity_id, state):
+        """Set state of Alexa guard.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+        entity_id (string): entityId of RedRock Panel
+        state (string): ARMED_AWAY, ARMED_STAY
+        """
+        session = login.session
+        url = login.url
+        parameters = {"action": "controlSecurityPanel",
+                      "armState": state}
+        data = {"controlRequests": [{"entityId": entity_id,
+                                     "entityType": "APPLIANCE",
+                                     "parameters": parameters}]}
+        response = session.post('https://alexa.' + url +
+                                '/api/phoenix/state',
+                                json=data)
+        _LOGGER.debug("Response: %s for data: %s ",
+                      response, json.dumps(data))
+        return response.json()
