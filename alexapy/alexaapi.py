@@ -464,9 +464,9 @@ class AlexaAPI():
         data = {"controlRequests": [{"entityId": entity_id,
                                      "entityType": "APPLIANCE",
                                      "parameters": parameters}]}
-        response = session.post('https://alexa.' + url +
+        response = session.put('https://alexa.' + url +
                                 '/api/phoenix/state',
                                 json=data)
         _LOGGER.debug("Response: %s for data: %s ",
-                      response, json.dumps(data))
+                      response.json(), json.dumps(data))
         return response.json()
