@@ -465,8 +465,26 @@ class AlexaAPI():
                                      "entityType": "APPLIANCE",
                                      "parameters": parameters}]}
         response = session.put('https://alexa.' + url +
-                                '/api/phoenix/state',
-                                json=data)
-        _LOGGER.debug("Response: %s for data: %s ",
+                               '/api/phoenix/state',
+                               json=data)
+        _LOGGER.debug("set_guard_state response: %s for data: %s ",
                       response.json(), json.dumps(data))
         return response.json()
+
+    @staticmethod
+    @_catch_all_exceptions
+    def get_guard_details(login):
+        """Get Alexa Guard details.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+
+        Returns json
+        """
+        session = login.session
+        url = login.url
+        response = session.get('https://alexa.' + url +
+                               '/api/phoenix')
+        # _LOGGER.debug("Response: %s",
+        #               response.json())
+        return json.loads(response.json()['networkDetail'])
