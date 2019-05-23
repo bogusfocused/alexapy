@@ -435,6 +435,8 @@ class AlexaAPI():
         Args:
         login (AlexaLogin): Successfully logged in AlexaLogin
         entity_id (string): applianceId of RedRock Panel
+
+        Returns json
         """
         session = login.session
         url = login.url
@@ -443,7 +445,7 @@ class AlexaAPI():
         response = session.post('https://alexa.' + url +
                                 '/api/phoenix/state',
                                 json=data)
-        _LOGGER.debug("Response: %s",
+        _LOGGER.debug("get_guard_state response: %s",
                       response.json())
         return response.json()
 
@@ -456,6 +458,8 @@ class AlexaAPI():
         login (AlexaLogin): Successfully logged in AlexaLogin
         entity_id (string): entityId of RedRock Panel
         state (string): ARMED_AWAY, ARMED_STAY
+
+        Returns json
         """
         session = login.session
         url = login.url
