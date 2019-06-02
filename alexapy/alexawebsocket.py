@@ -34,10 +34,12 @@ class WebsocketEchoClient(Thread):
     def __init__(self,
                  login,  # type: AlexaLogin
                  msg_callback,  # type: Callable[[Message], None]
+                 open_callback,  # type: Callable[[], None]
                  close_callback,  # type: Callable[[], None]
                  error_callback  # type: Callable[[Exception], None]
                  ):
         # type (...) -> None
+        # pylint: disable=too-many-arguments
         """Init for threading and WebSocket Connection."""
         if login.url.lower() == 'amazon.com':
             subdomain = 'dp-gw-na-js'  # type: Text
@@ -59,6 +61,7 @@ class WebsocketEchoClient(Thread):
             url += str(self._cookies['ubid-main'])
         url += "-" + str(int(time.time())) + "000"
         _LOGGER.debug("Connecting to %s with %s", url, cookies)
+        self.open_callback = open_callback  # type: Callable[[], None]
         self.msg_callback = msg_callback  # type: Callable[[Message], None]
         self.close_callback = close_callback  # type: Callable[[], None]
         self.error_callback = error_callback  \
@@ -192,6 +195,7 @@ class WebsocketEchoClient(Thread):
         self.websocket.send(self._encode_gw_handshake(), OPCODE_BINARY)
         time.sleep(1)
         self.websocket.send(self._encode_gw_register(), OPCODE_BINARY)
+        self.open_callback()
 
     def _encode_ws_handshake(self):
         # type: () -> str
