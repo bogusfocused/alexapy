@@ -426,3 +426,69 @@ class AlexaAPI():
                                          ['serialNumber']),
                         'timestamp': last_activity['creationTimestamp']}
         return None
+
+    @staticmethod
+    @_catch_all_exceptions
+    def get_guard_state(login, entity_id):
+        """Get state of Alexa guard.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+        entity_id (string): applianceId of RedRock Panel
+
+        Returns json
+        """
+        session = login.session
+        url = login.url
+        data = {"stateRequests": [{"entityId": entity_id,
+                                   "entityType": "APPLIANCE"}]}
+        response = session.post('https://alexa.' + url +
+                                '/api/phoenix/state',
+                                json=data)
+        _LOGGER.debug("get_guard_state response: %s",
+                      response.json())
+        return response.json()
+
+    @staticmethod
+    @_catch_all_exceptions
+    def set_guard_state(login, entity_id, state):
+        """Set state of Alexa guard.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+        entity_id (string): entityId of RedRock Panel
+        state (string): ARMED_AWAY, ARMED_STAY
+
+        Returns json
+        """
+        session = login.session
+        url = login.url
+        parameters = {"action": "controlSecurityPanel",
+                      "armState": state}
+        data = {"controlRequests": [{"entityId": entity_id,
+                                     "entityType": "APPLIANCE",
+                                     "parameters": parameters}]}
+        response = session.put('https://alexa.' + url +
+                               '/api/phoenix/state',
+                               json=data)
+        _LOGGER.debug("set_guard_state response: %s for data: %s ",
+                      response.json(), json.dumps(data))
+        return response.json()
+
+    @staticmethod
+    @_catch_all_exceptions
+    def get_guard_details(login):
+        """Get Alexa Guard details.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+
+        Returns json
+        """
+        session = login.session
+        url = login.url
+        response = session.get('https://alexa.' + url +
+                               '/api/phoenix')
+        # _LOGGER.debug("Response: %s",
+        #               response.json())
+        return json.loads(response.json()['networkDetail'])
