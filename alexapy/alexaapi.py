@@ -39,7 +39,7 @@ class AlexaAPI():
     login (AlexaLogin): Successfully logged in AlexaLogin
     """
 
-    devices = []  # type: List[Dict[str, Union[Any, None, List]]]
+    devices = {}  # type: Dict[str, List[Dict[str, Union[Any, None, List]]]]
 
     def __init__(self, device, login):
         """Initialize Alexa device."""
@@ -252,12 +252,12 @@ class AlexaAPI():
         devices = []
         if self._device._device_family == "WHA":
             # Build group of devices based off _cluster_members
-            for dev in AlexaAPI.devices:
+            for dev in AlexaAPI.devices[self._login.email]:
                 if dev['serialNumber'] in self._device._cluster_members:
                     devices.append({"deviceSerialNumber": dev['serialNumber'],
                                     "deviceTypeId": dev['deviceType']})
         elif targets and isinstance(targets, list):
-            for dev in AlexaAPI.devices:
+            for dev in AlexaAPI.devices[self._login.email]:
                 if (dev['serialNumber'] in targets or
                         dev['accountName'] in targets):
                     devices.append({"deviceSerialNumber": dev['serialNumber'],
@@ -364,7 +364,7 @@ class AlexaAPI():
         url = login.url
         response = session.get('https://alexa.' + url +
                                '/api/devices-v2/device')
-        AlexaAPI.devices = response.json()['devices']
+        AlexaAPI.devices[login.email] = response.json()['devices']
         return response.json()['devices']
 
     @staticmethod
