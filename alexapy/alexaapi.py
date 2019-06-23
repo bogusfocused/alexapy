@@ -39,7 +39,7 @@ class AlexaAPI():
     login (AlexaLogin): Successfully logged in AlexaLogin
     """
 
-    devices = []  # type: List[Dict[str, Union[Any, None, List]]]
+    devices = {}  # type: Dict[str, List[Dict[str, Union[Any, None, List]]]]
 
     def __init__(self, device, login):
         """Initialize Alexa device."""
@@ -54,6 +54,10 @@ class AlexaAPI():
     @_catch_all_exceptions
     def _post_request(self, uri, data):
         return self._session.post(self._url + uri, json=data)
+
+    @_catch_all_exceptions
+    def _put_request(self, uri, data):
+        return self._session.put(self._url + uri, json=data)
 
     @_catch_all_exceptions
     def _get_request(self, uri, data=None):
@@ -252,12 +256,12 @@ class AlexaAPI():
         devices = []
         if self._device._device_family == "WHA":
             # Build group of devices based off _cluster_members
-            for dev in AlexaAPI.devices:
+            for dev in AlexaAPI.devices[self._login.email]:
                 if dev['serialNumber'] in self._device._cluster_members:
                     devices.append({"deviceSerialNumber": dev['serialNumber'],
                                     "deviceTypeId": dev['deviceType']})
         elif targets and isinstance(targets, list):
-            for dev in AlexaAPI.devices:
+            for dev in AlexaAPI.devices[self._login.email]:
                 if (dev['serialNumber'] in targets or
                         dev['accountName'] in targets):
                     devices.append({"deviceSerialNumber": dev['serialNumber'],
@@ -317,11 +321,35 @@ class AlexaAPI():
         """Play."""
         self.set_media({"type": "PlayCommand"})
 
+    def forward(self):
+        """Fastforward."""
+        self.set_media({"type": "ForwardCommand"})
+
+    def rewind(self):
+        """Rewind."""
+        self.set_media({"type": "RewindCommand"})
+
     def set_volume(self, volume):
         """Set volume."""
         self.set_media({"type": "VolumeLevelCommand",
                         "volumeLevel": volume*100})
         self.send_sequence("Alexa.DeviceControls.Volume", value=volume*100)
+
+    def shuffle(self, setting):
+        """Shuffle.
+
+        setting (string) : true or false
+        """
+        self.set_media({"type": "ShuffleCommand",
+                        "shuffle": setting})
+
+    def repeat(self, setting):
+        """Repeat.
+
+        setting (string) : true or false
+        """
+        self.set_media({"type": "RepeatCommand",
+                        "repeat": setting})
 
     @_catch_all_exceptions
     def get_state(self):
@@ -332,6 +360,30 @@ class AlexaAPI():
                                      self._device._device_type +
                                      '&screenWidth=2560')
         return response.json()
+
+    @_catch_all_exceptions
+    def set_dnd_state(self, state):
+        """Set Do Not Disturb state.
+
+        Args:
+        state (boolean): true or false
+
+        Returns json
+        """
+        data = {
+            "deviceSerialNumber": self._device.unique_id,
+            "deviceType": self._device._device_type,
+            "enabled": state
+        }
+        _LOGGER.debug("Setting DND state: %s data: %s",
+                      state,
+                      json.dumps(data))
+        response = self._put_request('/api/dnd/status',
+                                     data=data)
+        success = data == response.json()
+        _LOGGER.debug("Success: %s Response: %s",
+                      success, response.json())
+        return success
 
     @staticmethod
     @_catch_all_exceptions
@@ -364,7 +416,7 @@ class AlexaAPI():
         url = login.url
         response = session.get('https://alexa.' + url +
                                '/api/devices-v2/device')
-        AlexaAPI.devices = response.json()['devices']
+        AlexaAPI.devices[login.email] = response.json()['devices']
         return response.json()['devices']
 
     @staticmethod
@@ -390,7 +442,7 @@ class AlexaAPI():
     @staticmethod
     @_catch_all_exceptions
     def get_device_preferences(login):
-        """Identify all Alexa device professions."""
+        """Identify all Alexa device preferences."""
         session = login.session
         url = login.url
         response = session.get('https://alexa.' + url +
@@ -492,3 +544,39 @@ class AlexaAPI():
         # _LOGGER.debug("Response: %s",
         #               response.json())
         return json.loads(response.json()['networkDetail'])
+
+    @staticmethod
+    @_catch_all_exceptions
+    def get_notifications(login):
+        """Get Alexa notifications.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+
+        Returns json
+        """
+        session = login.session
+        url = login.url
+        response = session.get('https://alexa.' + url +
+                               '/api/notifications')
+        # _LOGGER.debug("Response: %s",
+        #               response.json())
+        return response.json()['notifications']
+
+    @staticmethod
+    @_catch_all_exceptions
+    def get_dnd_state(login):
+        """Get Alexa DND states.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+
+        Returns json
+        """
+        session = login.session
+        url = login.url
+        response = session.get('https://alexa.' + url +
+                               '/api/dnd/device-status-list')
+        # _LOGGER.debug("Response: %s",
+        #               response.json())
+        return response.json()
