@@ -414,7 +414,7 @@ class AlexaAPI():
     @staticmethod
     @_catch_all_exceptions
     def get_device_preferences(login):
-        """Identify all Alexa device professions."""
+        """Identify all Alexa device preferences."""
         session = login.session
         url = login.url
         response = session.get('https://alexa.' + url +
