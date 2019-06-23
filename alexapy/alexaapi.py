@@ -317,11 +317,35 @@ class AlexaAPI():
         """Play."""
         self.set_media({"type": "PlayCommand"})
 
+    def forward(self):
+        """Fastforward."""
+        self.set_media({"type": "ForwardCommand"})
+
+    def rewind(self):
+        """Rewind."""
+        self.set_media({"type": "RewindCommand"})
+
     def set_volume(self, volume):
         """Set volume."""
         self.set_media({"type": "VolumeLevelCommand",
                         "volumeLevel": volume*100})
         self.send_sequence("Alexa.DeviceControls.Volume", value=volume*100)
+
+    def shuffle(self, setting):
+        """Shuffle.
+
+        setting (string) : true or false
+        """
+        self.set_media({"type": "ShuffleCommand",
+                        "shuffle": setting})
+
+    def repeat(self, setting):
+        """Repeat.
+
+        setting (string) : true or false
+        """
+        self.set_media({"type": "RepeatCommand",
+                        "repeat": setting})
 
     @_catch_all_exceptions
     def get_state(self):
