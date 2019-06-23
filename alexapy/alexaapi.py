@@ -362,7 +362,7 @@ class AlexaAPI():
         return response.json()
 
     @_catch_all_exceptions
-    def set_DND_state(self, state):
+    def set_dnd_state(self, state):
         """Set Do Not Disturb state.
 
         Args:
@@ -565,7 +565,7 @@ class AlexaAPI():
 
     @staticmethod
     @_catch_all_exceptions
-    def get_DND_state(login):
+    def get_dnd_state(login):
         """Get Alexa DND states.
 
         Args:
