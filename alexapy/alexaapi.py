@@ -516,3 +516,22 @@ class AlexaAPI():
         # _LOGGER.debug("Response: %s",
         #               response.json())
         return json.loads(response.json()['networkDetail'])
+
+    @staticmethod
+    @_catch_all_exceptions
+    def get_notifications(login):
+        """Get Alexa notifications.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+
+        Returns json
+        """
+        session = login.session
+        url = login.url
+        response = session.get('https://alexa.' + url +
+                               '/api/notifications')
+        # _LOGGER.debug("Response: %s",
+        #               response.json())
+        return response.json()['notifications']
+
