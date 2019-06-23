@@ -56,6 +56,10 @@ class AlexaAPI():
         return self._session.post(self._url + uri, json=data)
 
     @_catch_all_exceptions
+    def _put_request(self, uri, data):
+        return self._session.put(self._url + uri, json=data)
+
+    @_catch_all_exceptions
     def _get_request(self, uri, data=None):
         return self._session.get(self._url + uri, json=data)
 
@@ -357,6 +361,30 @@ class AlexaAPI():
                                      '&screenWidth=2560')
         return response.json()
 
+    @_catch_all_exceptions
+    def set_DND_state(self, state):
+        """Set Do Not Disturb state.
+
+        Args:
+        state (boolean): true or false
+
+        Returns json
+        """
+        data = {
+            "deviceSerialNumber": self._device.unique_id,
+            "deviceType": self._device._device_type,
+            "enabled": state
+        }
+        _LOGGER.debug("Setting DND state: %s data: %s",
+                      state,
+                      json.dumps(data))
+        response = self._put_request('/api/dnd/status',
+                                     data=data)
+        success = data == response.json()
+        _LOGGER.debug("Success: %s Response: %s",
+                      success, response.json())
+        return success
+
     @staticmethod
     @_catch_all_exceptions
     def get_bluetooth(login):
@@ -535,3 +563,20 @@ class AlexaAPI():
         #               response.json())
         return response.json()['notifications']
 
+    @staticmethod
+    @_catch_all_exceptions
+    def get_DND_state(login):
+        """Get Alexa DND states.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+
+        Returns json
+        """
+        session = login.session
+        url = login.url
+        response = session.get('https://alexa.' + url +
+                               '/api/dnd/device-status-list')
+        # _LOGGER.debug("Response: %s",
+        #               response.json())
+        return response.json()
