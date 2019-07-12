@@ -29,8 +29,7 @@ class AlexaLogin():
 
     def __init__(self, url, email, password, outputpath, debug=False):
         # pylint: disable=too-many-arguments
-        """Set up initial connection and log in.
-        """
+        """Set up initial connection and log in."""
         prefix = "alexa_media"
         self._url = url
         self._email = email # Review
@@ -46,21 +45,24 @@ class AlexaLogin():
 
         self.login_with_cookie() # Review
 
+    # Review
     @property
     def email(self):
         """Return email for this Login."""
-        return self._email # this should potentially be removed or masked.
-
+        return self._email
+    
     @property
     def session(self):
         """Return session for this Login."""
         return self._session
 
+    # Review
     @property
     def url(self):
         """Return session for this Login."""
-        return self._url # I do not see why this needs to be a public property 
+        return self._url
 
+    # Review
     def login_with_cookie(self):
         """Attempt to login after loading cookie."""
         import pickle
@@ -83,6 +85,7 @@ class AlexaLogin():
 
         self.login(cookies=cookies)
 
+    # Review
     def reset_login(self):
         """Remove data related to existing login."""
         self._session = None
