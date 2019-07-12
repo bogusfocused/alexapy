@@ -29,26 +29,27 @@ class AlexaLogin():
 
     def __init__(self, url, email, password, outputpath, debug=False):
         # pylint: disable=too-many-arguments
-        """Set up initial connection and log in."""
+        """Set up initial connection and log in.
+        """
         prefix = "alexa_media"
         self._url = url
-        self._email = email
-        self._password = password
-        self._session = None
-        self._data = None
-        self.status = {}
+        self._email = email # Review
+        self._password = password # Review
+        self._session = None 
+        self._data = None # Review
+        self.status = {} # Review
         self._cookiefile = outputpath("{}.{}.pickle".format(prefix, email))
         self._debugpost = outputpath("{}{}post.html".format(prefix, email))
         self._debugget = outputpath("{}{}get.html".format(prefix, email))
         self._lastreq = None
-        self._debug = debug
+        self._debug = debug # Review
 
-        self.login_with_cookie()
+        self.login_with_cookie() # Review
 
     @property
     def email(self):
         """Return email for this Login."""
-        return self._email
+        return self._email # this should potentially be removed or masked.
 
     @property
     def session(self):
@@ -58,7 +59,7 @@ class AlexaLogin():
     @property
     def url(self):
         """Return session for this Login."""
-        return self._url
+        return self._url # I do not see why this needs to be a public property 
 
     def login_with_cookie(self):
         """Attempt to login after loading cookie."""
@@ -101,6 +102,7 @@ class AlexaLogin():
                 _LOGGER.debug(
                     "Error deleting cookie %s: %s", self._cookiefile, message)
 
+    # not really sure why this is a class method, and also public?
     @classmethod
     def get_inputs(cls, soup, searchfield=None):
         """Parse soup for form with searchfield."""
@@ -115,6 +117,7 @@ class AlexaLogin():
                 pass
         return data
 
+    # Review
     def test_loggedin(self, cookies=None):
         """Function that will test the connection is logged in.
 
@@ -144,7 +147,7 @@ class AlexaLogin():
 
         try:
             from json.decoder import JSONDecodeError
-            from simplejson import JSONDecodeError as SimpleJSONDecodeError
+            from simplejson import JSONDecodeError as SimpleJSONDecodeError # Review
             # Need to catch both as Python 3.5 appears to use simplejson
         except ImportError:
             JSONDecodeError = ValueError
@@ -164,6 +167,7 @@ class AlexaLogin():
         self.reset_login()
         return False
 
+    # Review
     def login(self, cookies=None, captcha=None, securitycode=None,
               claimsoption=None, verificationcode=None):
         # pylint: disable=too-many-branches,too-many-arguments,too-many-locals,
@@ -196,13 +200,13 @@ class AlexaLogin():
                            'application/xml;q=0.9,*/*;q=0.8'),
                 'Accept-Language': '*'
             }
-
+        self.test_loggedin()
         if self._lastreq is not None:
             site = self._lastreq.url
             _LOGGER.debug("Loaded last request to %s ", site)
             html = self._lastreq.text
             #  get BeautifulSoup object of the html of the login page
-            if self._debug:
+            if self._debug: # Review
                 with open(self._debugget, mode='wb') as localfile:
                     localfile.write(self._lastreq.content)
 
@@ -229,7 +233,7 @@ class AlexaLogin():
 
             html = resp.text
             #  get BeautifulSoup object of the html of the login page
-            if self._debug:
+            if self._debug: # Review
                 with open(self._debugget, mode='wb') as localfile:
                     localfile.write(resp.content)
 
@@ -272,7 +276,7 @@ class AlexaLogin():
                                                  "urlencoded; charset=utf-8")
         self._data.pop('', None)
 
-        if self._debug:
+        if self._debug: # Review
             _LOGGER.debug("Cookies: %s", self._session.cookies)
             _LOGGER.debug("Submit Form Data: %s", self._data)
             _LOGGER.debug("Header: %s", self._session.headers)
@@ -282,7 +286,7 @@ class AlexaLogin():
         self._session.headers['Referer'] = site
 
         self._lastreq = post_resp
-        if self._debug:
+        if self._debug: # Review
             with open(self._debugpost, mode='wb') as localfile:
                 localfile.write(post_resp.content)
 
@@ -301,7 +305,7 @@ class AlexaLogin():
                           login_url)
             post_resp = self._session.post(login_url,
                                            data=self._data)
-            if self._debug:
+            if self._debug: # Review
                 with open(self._debugpost, mode='wb') as localfile:
                     localfile.write(post_resp.content)
             post_soup = BeautifulSoup(post_resp.content, 'html.parser')
