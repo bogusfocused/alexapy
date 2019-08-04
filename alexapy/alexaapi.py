@@ -47,9 +47,14 @@ class AlexaAPI():
         self._login = login
         self._session = login.session
         self._url = 'https://alexa.' + login.url
-
-        csrf = self._session.cookies.get_dict()['csrf']
-        self._session.headers['csrf'] = csrf
+        try:
+            csrf = self._session.cookies.get_dict()['csrf']
+            self._session.headers['csrf'] = csrf
+        except KeyError as ex:
+            _LOGGER.error(("AlexaLogin session is missing required token: %s "
+                           "this is an unrecoverable error, please report"),
+                          ex)
+            login.reset_login()
 
     @_catch_all_exceptions
     def _post_request(self, uri, data):
