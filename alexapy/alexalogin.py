@@ -118,8 +118,11 @@ class AlexaLogin():
     def test_loggedin(self, cookies=None):
         """Function that will test the connection is logged in.
 
-        Attempts to get authenticaton and compares to expected login email
+        Tests:
+        - Attempts to get authenticaton and compares to expected login email
         Returns false if unsuccesful getting json or the emails don't match
+        - Checks for existence of csrf cookie
+        Returns false if no csrf found; necessary to issue commands
         """
         if self._session is None:
             #  initiate session
@@ -136,7 +139,16 @@ class AlexaLogin():
                 'Accept-Language': '*'
             }
             self._session.cookies = cookies
-
+        try:
+            self._session.cookies.get_dict()['csrf']
+        except KeyError as ex:
+            _LOGGER.error(("Loging succesful, but AlexaLogin session is "
+                           "missing required token: %s "
+                           "please try to relogin once but if this persists "
+                           "this is an unrecoverable error, please report"),
+                          ex)
+            self.reset_login()
+            return False
         get_resp = self._session.get('https://alexa.' + self._url +
                                      '/api/bootstrap')
         # with open(self._debugget, mode='wb') as localfile:
@@ -181,7 +193,7 @@ class AlexaLogin():
         _LOGGER.debug("No valid cookies for log in; using credentials")
         #  site = 'https://www.' + self._url + '/gp/sign-in.html'
         #  use alexa site instead
-        site = 'https://alexa.' + self._url + '/api/devices-v2/device'
+        site = 'https://alexa.' + self._url
         if self._session is None:
             #  initiate session
 
