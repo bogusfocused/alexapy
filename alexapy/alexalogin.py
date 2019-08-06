@@ -72,7 +72,7 @@ class AlexaLogin():
                 with open(self._cookiefile, 'rb') as myfile:
                     cookies = pickle.load(myfile)
                     _LOGGER.debug("cookie loaded: %s", cookies)
-            except OSError as ex:
+            except (OSError, EOFError) as ex:
                 template = ("An exception of type {0} occurred."
                             " Arguments:\n{1!r}")
                 message = template.format(type(ex).__name__, ex.args)
