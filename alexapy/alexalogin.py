@@ -144,7 +144,7 @@ class AlexaLogin():
         try:
             self._session.cookies.get_dict()['csrf']
         except KeyError as ex:
-            _LOGGER.error(("Loging succesful, but AlexaLogin session is "
+            _LOGGER.error(("Login successful, but AlexaLogin session is "
                            "missing required token: %s "
                            "please try to relogin once but if this persists "
                            "this is an unrecoverable error, please report"),
