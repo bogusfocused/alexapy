@@ -107,6 +107,8 @@ class AlexaLogin():
         searchfield = searchfield or {'name': 'signIn'}
         data = {}
         form = soup.find('form', searchfield)
+        if not form:
+            form = soup.find('form')
         for field in form.find_all('input'):
             try:
                 data[field['name']] = ""
