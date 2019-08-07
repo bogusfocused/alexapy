@@ -261,14 +261,14 @@ class AlexaLogin():
                 localfile.write(resp.content)
 
         self._process_page(html, site)
-        post = self._populate_data(site, data)
+        missing_params = self._populate_data(site, data)
         if self._debug:
             _LOGGER.debug("Cookies: %s", self._session.cookies)
             _LOGGER.debug("Submit Form Data: %s", self._data)
             _LOGGER.debug("Header: %s", self._session.headers)
 
         # submit post request with username/password and other needed info
-        if not post:
+        if not missing_params:
             post_resp = self._session.post(site, data=self._data)
             self._session.headers['Referer'] = site
 
