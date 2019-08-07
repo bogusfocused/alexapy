@@ -157,15 +157,10 @@ class AlexaLogin():
         # with open(self._debugget, mode='wb') as localfile:
         #     localfile.write(get_resp.content)
 
-        try:
-            from json.decoder import JSONDecodeError
-            from simplejson import JSONDecodeError as SimpleJSONDecodeError
-            # Need to catch both as Python 3.5 appears to use simplejson
-        except ImportError:
-            JSONDecodeError = ValueError
+        from simplejson import JSONDecodeError
         try:
             email = get_resp.json()['authentication']['customerEmail']
-        except (JSONDecodeError, SimpleJSONDecodeError) as ex:
+        except (JSONDecodeError) as ex:
             # ValueError is necessary for Python 3.5 for some reason
             template = ("An exception of type {0} occurred."
                         " Arguments:\n{1!r}")
