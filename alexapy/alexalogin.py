@@ -261,21 +261,22 @@ class AlexaLogin():
                 localfile.write(resp.content)
 
         self._process_page(html, site)
-        self._populate_data(site, data)
+        post = self._populate_data(site, data)
         if self._debug:
             _LOGGER.debug("Cookies: %s", self._session.cookies)
             _LOGGER.debug("Submit Form Data: %s", self._data)
             _LOGGER.debug("Header: %s", self._session.headers)
 
         # submit post request with username/password and other needed info
-        post_resp = self._session.post(site, data=self._data)
-        self._session.headers['Referer'] = site
+        if not post:
+            post_resp = self._session.post(site, data=self._data)
+            self._session.headers['Referer'] = site
 
-        self._lastreq = post_resp
-        if self._debug:
-            with open(self._debugpost, mode='wb') as localfile:
-                localfile.write(post_resp.content)
-        self._process_page(post_resp.text, site)
+            self._lastreq = post_resp
+            if self._debug:
+                with open(self._debugpost, mode='wb') as localfile:
+                    localfile.write(post_resp.content)
+            self._process_page(post_resp.text, site)
 
     def _process_page(self, html, site):
         # pylint: disable=too-many-branches,too-many-locals,
@@ -466,4 +467,6 @@ class AlexaLogin():
                 self._data['otpDeviceContext'] = self._options[authopt]
             if (verificationcode is not None and 'code' in self._data):
                 self._data['code'] = verificationcode.encode('utf-8')
-            self._data.pop('', None)
+            self._data.pop('', None)  # remove '' key
+            return '' in self._data.values()  # test if unfilled values
+        return False
