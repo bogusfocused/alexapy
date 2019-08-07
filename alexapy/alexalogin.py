@@ -124,7 +124,8 @@ class AlexaLogin():
         for field in form.find_all('input'):
             try:
                 data[field['name']] = ""
-                data[field['name']] = field['value']
+                if field['type'] and field['type'] == 'hidden':
+                    data[field['name']] = field['value']
             except BaseException:  # pylint: disable=broad-except
                 pass
         return data
