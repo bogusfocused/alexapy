@@ -544,6 +544,8 @@ class AlexaAPI():
         """
         session = login.session
         url = login.url
+        #  remove extraneous Content-Type to avoid 500 errors
+        session.headers.pop('Content-Type', None)
         response = session.get('https://alexa.' + url +
                                '/api/phoenix')
         # _LOGGER.debug("Response: %s",
