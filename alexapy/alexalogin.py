@@ -435,7 +435,7 @@ class AlexaLogin():
         claimsoption = (None if 'claimsoption' not in data
                         else data['claimsoption'])
         authopt = (None if 'authselectoption' not in data
-                   else str(data['authselectoption']))
+                   else data['authselectoption'])
         verificationcode = (None if 'verificationcode' not in data
                             else data['verificationcode'])
         _LOGGER.debug(("Preparing post to %s Captcha: %s"
