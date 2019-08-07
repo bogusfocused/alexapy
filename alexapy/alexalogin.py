@@ -418,7 +418,10 @@ class AlexaLogin():
             else:
                 _LOGGER.debug("Login failed; check credentials")
                 status['login_failed'] = True
-
+                if '' in self._data.values():
+                    missing = [k for (k, v) in self._data.items() if v == '']
+                    _LOGGER.debug("If credentials correct, please report"
+                                  " these missing values: %s", missing)
         self.status = status
 
     def _populate_data(self, site, data):
