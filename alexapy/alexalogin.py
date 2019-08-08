@@ -416,6 +416,9 @@ class AlexaLogin():
                             "Error saving pickled cookie to %s: %s",
                             self._cookiefile,
                             message)
+                #  remove extraneous Content-Type to avoid 500 errors
+                self._session.headers.pop('Content-Type', None)
+
             else:
                 _LOGGER.debug("Login failed; check credentials")
                 status['login_failed'] = True
