@@ -24,7 +24,7 @@ DESCRIPTION = "Python API to control Amazon Echo Devices Programatically."
 URL = "https://gitlab.com/keatontaylor/alexapy"
 EMAIL = "keatonstaylor@gmail.com"
 AUTHOR = "Keaton Taylor"
-REQUIRES_PYTHON = ">=3.5.0"
+REQUIRES_PYTHON = ">=3.6.0"
 LICENSE = "Apache-2.0"
 VERSION = None
 
