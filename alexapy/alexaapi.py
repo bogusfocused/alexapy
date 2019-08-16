@@ -37,6 +37,7 @@ class AlexaAPI():
     Args:
     device (AlexaClient): Instance of an AlexaClient to access
     login (AlexaLogin): Successfully logged in AlexaLogin
+
     """
 
     devices = {}  # type: Dict[str, List[Dict[str, Union[Any, None, List]]]]
@@ -48,8 +49,8 @@ class AlexaAPI():
         self._session = login.session
         self._url = 'https://alexa.' + login.url
         try:
-            csrf = self._session.cookies.get_dict()['csrf']
-            self._session.headers['csrf'] = csrf
+            csrf = self._login._cookies['csrf']
+            self._login._headers['csrf'] = csrf
         except KeyError as ex:
             _LOGGER.error(("AlexaLogin session is missing required token: %s "
                            "this is an unrecoverable error, please report"),
@@ -57,18 +58,24 @@ class AlexaAPI():
             login.reset_login()
 
     @_catch_all_exceptions
-    def _post_request(self, uri, data):
-        return self._session.post(self._url + uri, json=data)
+    async def _post_request(self, uri, data):
+        return await self._session.post(self._url + uri, json=data,
+                                        cookies=self._login._cookies,
+                                        headers=self._login._headers)
 
     @_catch_all_exceptions
-    def _put_request(self, uri, data):
-        return self._session.put(self._url + uri, json=data)
+    async def _put_request(self, uri, data):
+        return await self._session.put(self._url + uri, json=data,
+                                       cookies=self._login._cookies,
+                                       headers=self._login._headers)
 
     @_catch_all_exceptions
-    def _get_request(self, uri, data=None):
-        return self._session.get(self._url + uri, json=data)
+    async def _get_request(self, uri, data=None):
+        return await self._session.get(self._url + uri, json=data,
+                                       cookies=self._login._cookies,
+                                       headers=self._login._headers)
 
-    def send_sequence(self, sequence, **kwargs):
+    async def send_sequence(self, sequence, **kwargs):
         """Send sequence command.
 
         This allows some programatic control of Echo device using the behaviors
@@ -99,7 +106,8 @@ class AlexaAPI():
         Alexa.Calendar.PlayTomorrow
         Alexa.Calendar.PlayToday
         Alexa.Calendar.PlayNext
-        https://github.com/keatontaylor/custom_components/wiki#sequence-commands-versions--100
+        https://github.com/keatontaylor/alexa_media_player/wiki#sequence-commands-versions--100
+
         """
         operation_payload = {
             "deviceType": self._device._device_type,
@@ -127,16 +135,17 @@ class AlexaAPI():
         _LOGGER.debug("Running sequence: %s data: %s",
                       sequence,
                       json.dumps(data))
-        self._post_request('/api/behaviors/preview',
-                           data=data)
+        await self._post_request('/api/behaviors/preview',
+                                 data=data)
 
-    def run_routine(self, utterance):
+    async def run_routine(self, utterance):
         """Run Alexa automation routine.
 
         This allows running of defined Alexa automation routines.
 
         Args:
         utterance (string): The Alexa utterance to run the routine.
+
         """
         def _populate_device_info(node):
             """Search node and replace with this Alexa's device_info."""
@@ -156,7 +165,7 @@ class AlexaAPI():
                     (node['locale']) = (self._device._locale if
                                         self._device._locale
                                         else "en-US")
-        automations = AlexaAPI.get_automations(self._login)
+        automations = await AlexaAPI.get_automations(self._login)
         automation_id = None
         sequence = None
         for automation in automations:
@@ -197,18 +206,18 @@ class AlexaAPI():
         _LOGGER.debug("Running routine: %s with data: %s",
                       utterance,
                       json.dumps(data))
-        self._post_request('/api/behaviors/preview',
-                           data=data)
+        await self._post_request('/api/behaviors/preview',
+                                 data=data)
 
-    def play_music(self, provider_id, search_phrase, customer_id=None):
+    async def play_music(self, provider_id, search_phrase, customer_id=None):
         """Play Music based on search."""
-        self.send_sequence("Alexa.Music.PlaySearchPhrase",
-                           customerId=customer_id,
-                           searchPhrase=search_phrase,
-                           sanitizedSearchPhrase=search_phrase,
-                           musicProviderId=provider_id)
+        await self.send_sequence("Alexa.Music.PlaySearchPhrase",
+                                 customerId=customer_id,
+                                 searchPhrase=search_phrase,
+                                 sanitizedSearchPhrase=search_phrase,
+                                 musicProviderId=provider_id)
 
-    def send_tts(self, message, customer_id=None):
+    async def send_tts(self, message, customer_id=None):
         """Send message for TTS at speaker.
 
         This is the old method which used Alexa Simon Says which did not work
@@ -221,16 +230,17 @@ class AlexaAPI():
                              specified this defaults to the device owner. Used
                              with households where others may have their own
                              music.
-        """
-        self.send_sequence("Alexa.Speak",
-                           customerId=customer_id,
-                           textToSpeak=message)
 
-    def send_announcement(self, message,
-                          method="all",
-                          title="Announcement",
-                          customer_id=None,
-                          targets=None):
+        """
+        await self.send_sequence("Alexa.Speak",
+                                 customerId=customer_id,
+                                 textToSpeak=message)
+
+    async def send_announcement(self, message,
+                                method="all",
+                                title="Announcement",
+                                customer_id=None,
+                                targets=None):
         # pylint: disable=too-many-arguments
         """Send announcment to Alexa devices.
 
@@ -249,6 +259,7 @@ class AlexaAPI():
                                 announcement to. Only those in this AlexaAPI
                                 account will be searched. If None, announce
                                 will be self.
+
         """
         display = ({"title": "", "body": ""} if method.lower() == "speak" else
                    {"title": title, "body": message})
@@ -277,14 +288,14 @@ class AlexaAPI():
 
         target = {"customerId": customer_id,
                   "devices": devices}
-        self.send_sequence("AlexaAnnouncement",
-                           customerId=customer_id,
-                           expireAfter="PT5S",
-                           content=content,
-                           target=target)
+        await self.send_sequence("AlexaAnnouncement",
+                                 customerId=customer_id,
+                                 expireAfter="PT5S",
+                                 content=content,
+                                 target=target)
 
-    def send_mobilepush(self, message, title="AlexaAPI Message",
-                        customer_id=None):
+    async def send_mobilepush(self, message, title="AlexaAPI Message",
+                              customer_id=None):
         """Send announcment to Alexa devices.
 
         Push a message to mobile devices with the Alexa App. This probably
@@ -295,85 +306,90 @@ class AlexaAPI():
         title (string): Title for push notification
         customer_id (string): CustomerId to use for sending. When none
                               specified this defaults to the device owner.
+
         """
-        self.send_sequence("Alexa.Notifications.SendMobilePush",
-                           customerId=(customer_id if customer_id is not None
-                                       else
-                                       self._device._device_owner_customer_id),
-                           notificationMessage=message,
-                           alexaUrl="#v2/behaviors",
-                           title=title)
+        await self.send_sequence("Alexa.Notifications.SendMobilePush",
+                                 customerId=(
+                                     customer_id if customer_id is not None
+                                     else
+                                     self._device._device_owner_customer_id),
+                                 notificationMessage=message,
+                                 alexaUrl="#v2/behaviors",
+                                 title=title)
 
-    def set_media(self, data):
+    async def set_media(self, data):
         """Select the media player."""
-        self._post_request('/api/np/command?deviceSerialNumber=' +
-                           self._device.unique_id + '&deviceType=' +
-                           self._device._device_type, data=data)
+        await self._post_request('/api/np/command?deviceSerialNumber=' +
+                                 self._device.unique_id + '&deviceType=' +
+                                 self._device._device_type, data=data)
 
-    def previous(self):
+    async def previous(self):
         """Play previous."""
-        self.set_media({"type": "PreviousCommand"})
+        await self.set_media({"type": "PreviousCommand"})
 
-    def next(self):
+    async def next(self):
         """Play next."""
-        self.set_media({"type": "NextCommand"})
+        await self.set_media({"type": "NextCommand"})
 
-    def pause(self):
+    async def pause(self):
         """Pause."""
-        self.set_media({"type": "PauseCommand"})
+        await self.set_media({"type": "PauseCommand"})
 
-    def play(self):
+    async def play(self):
         """Play."""
-        self.set_media({"type": "PlayCommand"})
+        await self.set_media({"type": "PlayCommand"})
 
-    def forward(self):
+    async def forward(self):
         """Fastforward."""
-        self.set_media({"type": "ForwardCommand"})
+        await self.set_media({"type": "ForwardCommand"})
 
-    def rewind(self):
+    async def rewind(self):
         """Rewind."""
-        self.set_media({"type": "RewindCommand"})
+        await self.set_media({"type": "RewindCommand"})
 
-    def set_volume(self, volume):
+    async def set_volume(self, volume):
         """Set volume."""
-        self.set_media({"type": "VolumeLevelCommand",
-                        "volumeLevel": volume*100})
-        self.send_sequence("Alexa.DeviceControls.Volume", value=volume*100)
+        await self.set_media({"type": "VolumeLevelCommand",
+                              "volumeLevel": volume*100})
+        await self.send_sequence("Alexa.DeviceControls.Volume",
+                                 value=volume*100)
 
-    def shuffle(self, setting):
+    async def shuffle(self, setting):
         """Shuffle.
 
         setting (string) : true or false
         """
-        self.set_media({"type": "ShuffleCommand",
-                        "shuffle": setting})
+        await self.set_media({"type": "ShuffleCommand",
+                              "shuffle": setting})
 
-    def repeat(self, setting):
+    async def repeat(self, setting):
         """Repeat.
 
         setting (string) : true or false
         """
-        self.set_media({"type": "RepeatCommand",
-                        "repeat": setting})
+        await self.set_media({"type": "RepeatCommand",
+                              "repeat": setting})
 
     @_catch_all_exceptions
-    def get_state(self):
+    async def get_state(self):
         """Get playing state."""
-        response = self._get_request('/api/np/player?deviceSerialNumber=' +
-                                     self._device.unique_id +
-                                     '&deviceType=' +
-                                     self._device._device_type +
-                                     '&screenWidth=2560')
-        return response.json()
+        response = await self._get_request('/api/np/player?deviceSerialNumber='
+                                           +
+                                           self._device.unique_id +
+                                           '&deviceType=' +
+                                           self._device._device_type +
+                                           '&screenWidth=2560')
+        return await response.json()
 
     @_catch_all_exceptions
-    def set_dnd_state(self, state):
+    async def set_dnd_state(self, state):
         """Set Do Not Disturb state.
 
         Args:
         state (boolean): true or false
 
         Returns json
+
         """
         data = {
             "deviceSerialNumber": self._device.unique_id,
@@ -383,96 +399,111 @@ class AlexaAPI():
         _LOGGER.debug("Setting DND state: %s data: %s",
                       state,
                       json.dumps(data))
-        response = self._put_request('/api/dnd/status',
-                                     data=data)
-        success = data == response.json()
+        response = await self._put_request('/api/dnd/status',
+                                           data=data)
+        success = data == await response.json()
         _LOGGER.debug("Success: %s Response: %s",
-                      success, response.json())
+                      success, await response.json())
         return success
 
     @staticmethod
     @_catch_all_exceptions
-    def get_bluetooth(login):
+    async def get_bluetooth(login):
         """Get paired bluetooth devices."""
         session = login.session
         url = login.url
-        response = session.get('https://alexa.' + url +
-                               '/api/bluetooth?cached=false')
-        return response.json()
+        response = await session.get('https://alexa.' + url +
+                                     '/api/bluetooth?cached=false',
+                                     cookies=login._cookies,
+                                     headers=login._headers)
+        return await response.json()
 
-    def set_bluetooth(self, mac):
+    async def set_bluetooth(self, mac):
         """Pair with bluetooth device with mac address."""
-        self._post_request('/api/bluetooth/pair-sink/' +
-                           self._device._device_type + '/' +
-                           self._device.unique_id,
-                           data={"bluetoothDeviceAddress": mac})
+        await self._post_request('/api/bluetooth/pair-sink/' +
+                                 self._device._device_type + '/' +
+                                 self._device.unique_id,
+                                 data={"bluetoothDeviceAddress": mac})
 
-    def disconnect_bluetooth(self):
+    async def disconnect_bluetooth(self):
         """Disconnect all bluetooth devices."""
-        self._post_request('/api/bluetooth/disconnect-sink/' +
-                           self._device._device_type + '/' +
-                           self._device.unique_id, data=None)
+        await self._post_request('/api/bluetooth/disconnect-sink/' +
+                                 self._device._device_type + '/' +
+                                 self._device.unique_id,
+                                 data=None)
 
     @staticmethod
     @_catch_all_exceptions
-    def get_devices(login):
+    async def get_devices(login):
         """Identify all Alexa devices."""
         session = login.session
         url = login.url
-        response = session.get('https://alexa.' + url +
-                               '/api/devices-v2/device')
-        AlexaAPI.devices[login.email] = response.json()['devices']
-        return response.json()['devices']
+        response = await session.get('https://alexa.' + url +
+                                     '/api/devices-v2/device',
+                                     cookies=login._cookies,
+                                     headers=login._headers)
+        AlexaAPI.devices[login.email] = (await response.json())['devices']
+        return (await response.json())['devices']
 
     @staticmethod
     @_catch_all_exceptions
-    def get_authentication(login):
+    async def get_authentication(login):
         """Get authentication json."""
         session = login.session
         url = login.url
-        response = session.get('https://alexa.' + url +
-                               '/api/bootstrap')
-        return response.json()['authentication']
+        response = await session.get('https://alexa.' + url +
+                                     '/api/bootstrap',
+                                     cookies=login._cookies,
+                                     headers=login._headers)
+        return (await response.json())['authentication']
 
     @staticmethod
     @_catch_all_exceptions
-    def get_activities(login, items=10):
+    async def get_activities(login, items=10):
         """Get activities json."""
         session = login.session
         url = login.url
-        response = session.get('https://alexa.' + url + '/api/activities?'
-                               'startTime=&size=' + str(items) + '&offset=1')
-        return response.json()['activities']
+        response = await session.get('https://alexa.' + url +
+                                     '/api/activities?'
+                                     'startTime=&size=' + str(items) +
+                                     '&offset=1',
+                                     cookies=login._cookies,
+                                     headers=login._headers)
+        return (await response.json())['activities']
 
     @staticmethod
     @_catch_all_exceptions
-    def get_device_preferences(login):
+    async def get_device_preferences(login):
         """Identify all Alexa device preferences."""
         session = login.session
         url = login.url
-        response = session.get('https://alexa.' + url +
-                               '/api/device-preferences')
-        return response.json()
+        response = await session.get('https://alexa.' + url +
+                                     '/api/device-preferences',
+                                     cookies=login._cookies,
+                                     headers=login._headers)
+        return await response.json()
 
     @staticmethod
     @_catch_all_exceptions
-    def get_automations(login, items=1000):
+    async def get_automations(login, items=1000):
         """Identify all Alexa automations."""
         session = login.session
         url = login.url
-        response = session.get('https://alexa.' + url +
-                               '/api/behaviors/automations' + '?limit=' +
-                               str(items))
-        return response.json()
+        response = await session.get('https://alexa.' + url +
+                                     '/api/behaviors/automations' + '?limit=' +
+                                     str(items),
+                                     cookies=login._cookies,
+                                     headers=login._headers)
+        return await response.json()
 
     @staticmethod
-    def get_last_device_serial(login, items=10):
+    async def get_last_device_serial(login, items=10):
         """Identify the last device's serial number.
 
         This will store the [last items] activity records and find the latest
         entry where Echo successfully responded.
         """
-        response = AlexaAPI.get_activities(login, items)
+        response = await AlexaAPI.get_activities(login, items)
         if response is not None:
             for last_activity in response:
                 # Ignore discarded activity records
@@ -486,7 +517,7 @@ class AlexaAPI():
 
     @staticmethod
     @_catch_all_exceptions
-    def get_guard_state(login, entity_id):
+    async def get_guard_state(login, entity_id):
         """Get state of Alexa guard.
 
         Args:
@@ -494,21 +525,24 @@ class AlexaAPI():
         entity_id (string): applianceId of RedRock Panel
 
         Returns json
+
         """
         session = login.session
         url = login.url
         data = {"stateRequests": [{"entityId": entity_id,
                                    "entityType": "APPLIANCE"}]}
-        response = session.post('https://alexa.' + url +
-                                '/api/phoenix/state',
-                                json=data)
+        response = await session.post('https://alexa.' + url +
+                                      '/api/phoenix/state',
+                                      cookies=login._cookies,
+                                      headers=login._headers,
+                                      json=data)
         _LOGGER.debug("get_guard_state response: %s",
-                      response.json())
-        return response.json()
+                      await response.json())
+        return await response.json()
 
     @staticmethod
     @_catch_all_exceptions
-    def set_guard_state(login, entity_id, state):
+    async def set_guard_state(login, entity_id, state):
         """Set state of Alexa guard.
 
         Args:
@@ -517,6 +551,7 @@ class AlexaAPI():
         state (string): ARMED_AWAY, ARMED_STAY
 
         Returns json
+
         """
         session = login.session
         url = login.url
@@ -525,65 +560,74 @@ class AlexaAPI():
         data = {"controlRequests": [{"entityId": entity_id,
                                      "entityType": "APPLIANCE",
                                      "parameters": parameters}]}
-        response = session.put('https://alexa.' + url +
-                               '/api/phoenix/state',
-                               json=data)
+        response = await session.put('https://alexa.' + url +
+                                     '/api/phoenix/state',
+                                     cookies=login._cookies,
+                                     headers=login._headers,
+                                     json=data)
         _LOGGER.debug("set_guard_state response: %s for data: %s ",
-                      response.json(), json.dumps(data))
-        return response.json()
+                      await response.json(), json.dumps(data))
+        return await response.json()
 
     @staticmethod
     @_catch_all_exceptions
-    def get_guard_details(login):
+    async def get_guard_details(login):
         """Get Alexa Guard details.
 
         Args:
         login (AlexaLogin): Successfully logged in AlexaLogin
 
         Returns json
+
         """
         session = login.session
         url = login.url
-        #  remove extraneous Content-Type to avoid 500 errors
-        session.headers.pop('Content-Type', None)
-        response = session.get('https://alexa.' + url +
-                               '/api/phoenix')
+        response = await session.get('https://alexa.' + url +
+                                     '/api/phoenix',
+                                     cookies=login._cookies,
+                                     headers=login._headers)
         # _LOGGER.debug("Response: %s",
-        #               response.json())
-        return json.loads(response.json()['networkDetail'])
+        #               await response.json())
+        return json.loads((await response.json())['networkDetail'])
 
     @staticmethod
     @_catch_all_exceptions
-    def get_notifications(login):
+    async def get_notifications(login):
         """Get Alexa notifications.
 
         Args:
         login (AlexaLogin): Successfully logged in AlexaLogin
 
         Returns json
+
         """
         session = login.session
         url = login.url
-        response = session.get('https://alexa.' + url +
-                               '/api/notifications')
+        response = await session.get('https://alexa.' + url +
+                                     '/api/notifications',
+                                     cookies=login._cookies,
+                                     headers=login._headers)
         # _LOGGER.debug("Response: %s",
         #               response.json())
-        return response.json()['notifications']
+        return await response.json()['notifications']
 
     @staticmethod
     @_catch_all_exceptions
-    def get_dnd_state(login):
+    async def get_dnd_state(login):
         """Get Alexa DND states.
 
         Args:
         login (AlexaLogin): Successfully logged in AlexaLogin
 
         Returns json
+
         """
         session = login.session
         url = login.url
-        response = session.get('https://alexa.' + url +
-                               '/api/dnd/device-status-list')
+        response = await session.get('https://alexa.' + url +
+                                     '/api/dnd/device-status-list',
+                                     cookies=login._cookies,
+                                     headers=login._headers)
         # _LOGGER.debug("Response: %s",
         #               response.json())
-        return response.json()
+        return await response.json()
