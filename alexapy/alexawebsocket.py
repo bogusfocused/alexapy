@@ -9,7 +9,7 @@ https://gitlab.com/keatontaylor/alexapy
 """
 import json
 import logging
-import ssl
+
 import time
 from threading import Thread
 from typing import Any, Callable, Dict, Optional, TYPE_CHECKING, Text, Union  # noqa pylint: disable=unused-import
@@ -80,8 +80,7 @@ class WebsocketEchoClient(Thread):
     def run(self):
         # type: () -> None
         """Start WebSocket Listener."""
-        self.websocket.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE},
-                                   ping_interval=180,
+        self.websocket.run_forever(ping_interval=180,
                                    ping_timeout=20)
 
     def on_message(self, message):
