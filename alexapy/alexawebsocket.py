@@ -13,7 +13,7 @@ import logging
 import time
 from threading import Thread
 from typing import Any, Callable, Dict, Optional, TYPE_CHECKING, Text, Union  # noqa pylint: disable=unused-import
-from websocket import WebSocketApp
+import websocket
 
 if TYPE_CHECKING:
     from . import AlexaLogin # noqa pylint: disable=unused-import
@@ -50,29 +50,32 @@ class WebsocketEchoClient(Thread):
                                                login.url,
                                                'ALEGCNGL9K0HM')
         self._session = login.session
-        self._cookies = self._session.cookies.get_dict()
+        self._cookies = login._cookies
+        self._headers = login._headers
         cookies = ""  # type: Text
         for key, value in self._cookies.items():
             cookies += str(key) + "=" + value + "; "
-        cookies = "Cookie: " + cookies
+        self._headers['Cookie'] = cookies
         if 'ubid-abcde' in self._cookies:
             url += str(self._cookies['ubid-abcde'])
         elif 'ubid-main' in self._cookies:
             url += str(self._cookies['ubid-main'])
         url += "-" + str(int(time.time())) + "000"
-        _LOGGER.debug("Connecting to %s with %s", url, cookies)
         self.open_callback = open_callback  # type: Callable[[], None]
         self.msg_callback = msg_callback  # type: Callable[[Message], None]
         self.close_callback = close_callback  # type: Callable[[], None]
         self.error_callback = error_callback  \
             # type: Callable[[Exception], None]
-        websocket_ = WebSocketApp(url,
-                                  on_message=self.on_message,
-                                  on_error=self.on_error,
-                                  on_close=self.on_close,
-                                  on_open=self.on_open,
-                                  on_pong=self.on_pong,
-                                  header=[cookies])  # type: WebSocketApp
+        _LOGGER.debug("Connecting to %s with %s", url, self._headers)
+        # websocket.enableTrace(True)
+        websocket_ = websocket.WebSocketApp(url,
+                                            on_message=self.on_message,
+                                            on_error=self.on_error,
+                                            on_close=self.on_close,
+                                            on_open=self.on_open,
+                                            on_pong=self.on_pong,
+                                            header=self._headers
+                                            )  # type: websocket.WebSocketApp
         self.websocket = websocket_
         Thread.__init__(self)
         self.start()
