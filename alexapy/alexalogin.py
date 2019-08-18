@@ -8,10 +8,12 @@ For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
 
-from typing import Any, Callable, Dict, List, Union  # noqa pylint: disable=unused-import
+from typing import Any, Callable, cast, Dict, List, Optional, Text, Tuple, Union  # noqa pylint: disable=unused-import
+
 import logging
 
 import aiohttp
+from bs4 import BeautifulSoup
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,52 +32,53 @@ class AlexaLogin():
     """
 
     def __init__(self,
-                 url: str,
-                 email: str,
-                 password: str,
-                 outputpath: Callable[[str], str],
+                 url: Text,
+                 email: Text,
+                 password: Text,
+                 outputpath: Callable[[Text], Text],
                  debug: bool = False) -> None:
         # pylint: disable=too-many-arguments
         """Set up initial connection and log in."""
-        prefix: str = "alexa_media"
-        self._url: str = url
-        self._email: str = email
-        self._password: str = password
-        self._session: Union[None, aiohttp.ClientSession] = None
-        self._cookies: Dict[str, str] = {}
-        self._headers: Dict[str, str] = {}
-        self._data: Union[None, Dict[str, str]] = None
-        self.status: Union[None, Dict[str, str]] = {}
-        self._cookiefile: str = outputpath("{}.{}.pickle".format(prefix,
-                                                                 email))
-        self._debugpost: str = outputpath("{}{}post.html".format(prefix,
-                                                                 email))
-        self._debugget: str = outputpath("{}{}get.html".format(prefix,
-                                                               email))
-        self._lastreq: Union[None, aiohttp.RequestInfo] = None
+        prefix: Text = "alexa_media"
+        self._url: Text = url
+        self._email: Text = email
+        self._password: Text = password
+        self._session: Optional[aiohttp.ClientSession] = None
+        self._cookies: Optional[Dict[Text, Text]] = {}
+        self._headers: Dict[Text, Text] = {}
+        self._data: Optional[Dict[Text, Text]] = None
+        self.status: Optional[Dict[Text, Union[Text, bool]]] = {}
+        self._cookiefile: Text = outputpath("{}.{}.pickle".format(prefix,
+                                                                  email))
+        self._debugpost: Text = outputpath("{}{}post.html".format(prefix,
+                                                                  email))
+        self._debugget: Text = outputpath("{}{}get.html".format(prefix,
+                                                                email))
+        self._lastreq: Optional[aiohttp.ClientResponse] = None
         self._debug: bool = debug
-        self._links: Union[None, Dict[str, str]] = {}
-        self._options: Union[None, Dict[str, str]] = {}
+        self._links: Optional[Dict[Text, Tuple[Text, Text]]] = {}
+        self._options: Optional[Dict[Text, Text]] = {}
 
     @property
-    def email(self) -> str:
+    def email(self) -> Text:
         """Return email for this Login."""
         return self._email
 
     @property
-    def session(self) -> Union[None, aiohttp.ClientSession]:
+    def session(self) -> Optional[aiohttp.ClientSession]:
         """Return session for this Login."""
         return self._session
 
     @property
-    def url(self):
+    def url(self) -> Text:
         """Return session for this Login."""
         return self._url
 
     @property
-    def links(self):
+    def links(self) -> Text:
         """Return string list of links from last page for this Login."""
         result = ""
+        assert self._links is not None
         for key, value in self._links.items():
             result += "link{}:{}\n".format(key, value[0])
         return result
@@ -84,11 +87,10 @@ class AlexaLogin():
         """Attempt to login after loading cookie."""
         import pickle
         import aiofiles
-        cookies = None
-
+        from requests.cookies import RequestsCookieJar
+        cookies: Optional[RequestsCookieJar] = None
         if self._cookiefile:
             try:
-                from requests.cookies import RequestsCookieJar
                 _LOGGER.debug(
                     "Trying to load cookie from file %s", self._cookiefile)
                 async with aiofiles.open(self._cookiefile, 'rb') as myfile:
@@ -100,11 +102,12 @@ class AlexaLogin():
                     if isinstance(cookies,
                                   RequestsCookieJar):
                         self._cookies = cookies.get_dict()
+                        assert self._cookies is not None
                         for key, value in cookies.items():
                             _LOGGER.debug('Key: "%s", Value: "%s"',
                                           key,
                                           value)
-                            self._cookies[key] = value.strip('\"')
+                            self._cookies[str(key)] = value.strip('\"')
                     else:
                         self._cookies = cookies
             except (OSError, EOFError) as ex:
@@ -117,7 +120,7 @@ class AlexaLogin():
 
         await self.login(cookies=self._cookies)
 
-    def reset_login(self):
+    def reset_login(self) -> None:
         """Remove data related to existing login."""
         self._session = None
         self._data = None
@@ -139,7 +142,9 @@ class AlexaLogin():
                     "Error deleting cookie %s: %s", self._cookiefile, message)
 
     @classmethod
-    def get_inputs(cls, soup, searchfield=None):
+    def get_inputs(cls,
+                   soup: BeautifulSoup,
+                   searchfield=None) -> Dict[str, str]:
         """Parse soup for form with searchfield."""
         searchfield = searchfield or {'name': 'signIn'}
         data = {}
@@ -184,6 +189,7 @@ class AlexaLogin():
         if self._debug:
             _LOGGER.debug("Cookies: %s", self._cookies)
             _LOGGER.debug("Header: %s", self._headers)
+        assert self._session is not None
         get_resp = await self._session.get('https://alexa.' + self._url +
                                            '/api/bootstrap',
                                            cookies=self._cookies
@@ -212,7 +218,7 @@ class AlexaLogin():
         if not self._session:
             #  initiate session
 
-            self._session: aiohttp.ClientSession = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession()
 
             #  define session headers
             self._headers = {
@@ -224,7 +230,9 @@ class AlexaLogin():
                 'Accept-Language': '*'
             }
 
-    async def login(self, cookies=None, data=None) -> None:
+    async def login(self,
+                    cookies: Optional[Dict[Text, Text]] = None,
+                    data: Optional[Dict[Text, Optional[Text]]] = None) -> None:
         # pylint: disable=too-many-branches,too-many-locals,
         # pylint: disable=too-many-statements
         """Login to Amazon."""
@@ -238,9 +246,9 @@ class AlexaLogin():
         _LOGGER.debug("No valid cookies for log in; using credentials")
         #  site = 'https://www.' + self._url + '/gp/sign-in.html'
         #  use alexa site instead
-        site = 'https://alexa.' + self._url
+        site: Text = 'https://alexa.' + self._url
         self._create_session()
-
+        assert self._session is not None
         #  This will process links which is used for debug only to force going
         #  to other links.  Warning, chrome will cache any link parameters
         #  breaking the configuration flow until refresh on browser.
@@ -250,6 +258,7 @@ class AlexaLogin():
                     value[4:].isdigit()):
                 digit = str(value[4:])
                 _LOGGER.debug("Found link selection %s in %s ", digit, datum)
+                assert self._links is not None
                 if self._links.get(digit):
                     (text, site) = self._links[digit]
                     data[datum] = None
@@ -260,20 +269,22 @@ class AlexaLogin():
                                   datum,
                                   data[datum])
         if not digit and self._lastreq is not None:
-            site = self._lastreq.url
+            assert self._lastreq is not None
+            site = str(self._lastreq.url)
             _LOGGER.debug("Loaded last request to %s ", site)
             resp = self._lastreq
-            html = await self._lastreq.text()
-            from bs4 import BeautifulSoup
+            html: Text = await self._lastreq.text()
             #  get BeautifulSoup object of the html of the login page
-            soup = BeautifulSoup(html, 'html.parser')
+            soup: BeautifulSoup = BeautifulSoup(html, 'html.parser')
             site = soup.find('form').get('action')
             if site is None or site == "":
                 site = self._lastreq.url
             elif site == 'verify':
                 import re
-                site = re.search(r'(.+)/(.*)',
-                                 self._lastreq.url).groups()[0] + "/verify"
+                search_results = re.search(r'(.+)/(.*)',
+                                           self._lastreq.url)
+                assert search_results is not None
+                site = search_results.groups()[0] + "/verify"
         else:
             resp = await self._session.get(site)
             self._lastreq = resp
@@ -315,7 +326,7 @@ class AlexaLogin():
                     await localfile.write(await post_resp.read())
             await self._process_page(await post_resp.text(), site)
 
-    async def _process_page(self, html: str, site: str) -> None:
+    async def _process_page(self, html: str, site: Text) -> None:
         # pylint: disable=too-many-branches,too-many-locals,
         # pylint: disable=too-many-statements
 
@@ -342,10 +353,9 @@ class AlexaLogin():
                               links)
             self._links = links
 
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(html, 'html.parser')
+        soup: BeautifulSoup = BeautifulSoup(html, 'html.parser')
 
-        status = {}
+        status: Dict[Text, Union[Text, bool]] = {}
 
         #  Find tags to determine which path
         login_tag = soup.find('form', {'name': 'signIn'})
@@ -441,7 +451,10 @@ class AlexaLogin():
                 _LOGGER.debug("Login confirmed; saving cookie to %s",
                               self._cookiefile)
                 status['login_successful'] = True
-                cookies = self._session.cookie_jar.filter_cookies(site)
+                from yarl import URL
+                assert self._session is not None
+                cookies = self._session.cookie_jar.filter_cookies(URL(site))
+                assert self._cookies is not None
                 for _, cookie in cookies.items():
                     # _LOGGER.debug('Key: "%s", Value: "%s"' %
                     #               (cookie.key, cookie.value))
@@ -465,24 +478,29 @@ class AlexaLogin():
             else:
                 _LOGGER.debug("Login failed; check credentials")
                 status['login_failed'] = True
+                assert self._data is not None
                 if '' in self._data.values():
                     missing = [k for (k, v) in self._data.items() if v == '']
                     _LOGGER.debug("If credentials correct, please report"
                                   " these missing values: %s", missing)
         self.status = status
 
-    def _populate_data(self, site, data) -> bool:
+    def _populate_data(self,
+                       site: Text,
+                       data: Dict[str, Optional[str]]) -> bool:
         """Populate self._data with info from data."""
         # pull data from configurator
-        captcha = None if 'captcha' not in data else data['captcha']
-        securitycode = (None if 'securitycode' not in data
-                        else data['securitycode'])
-        claimsoption = (None if 'claimsoption' not in data
-                        else data['claimsoption'])
-        authopt = (None if 'authselectoption' not in data
-                   else data['authselectoption'])
-        verificationcode = (None if 'verificationcode' not in data
-                            else data['verificationcode'])
+        captcha: Optional[Text] = (None if 'captcha' not in data
+                                   else data['captcha'])
+        securitycode: Optional[Text] = (None if 'securitycode' not in data
+                                        else data['securitycode'])
+        claimsoption: Optional[Text] = (None if 'claimsoption' not in data
+                                        else data['claimsoption'])
+        authopt: Optional[Text] = (None if 'authselectoption' not in data
+                                   else data['authselectoption'])
+        verificationcode: Optional[Text] = (None if 'verificationcode' not in
+                                            data
+                                            else data['verificationcode'])
         _LOGGER.debug(("Preparing post to %s Captcha: %s"
                        " SecurityCode: %s Claimsoption: %s "
                        " AuthSelectOption: %s VerificationCode: %s"),
@@ -506,10 +524,11 @@ class AlexaLogin():
                 self._data['guess'] = captcha
             if (securitycode is not None and 'otpCode' in self._data):
                 self._data['otpCode'] = securitycode
-                self._data['rememberDevice'] = True
+                self._data['rememberDevice'] = "True"
             if (claimsoption is not None and 'option' in self._data):
                 self._data['option'] = claimsoption
             if (authopt is not None and 'otpDeviceContext' in self._data):
+                assert self._options is not None
                 self._data['otpDeviceContext'] = self._options[authopt]
             if (verificationcode is not None and 'code' in self._data):
                 self._data['code'] = verificationcode
