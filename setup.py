@@ -32,8 +32,8 @@ VERSION = None
 REQUIRED = [
     'beautifulsoup4',
     'simplejson',
-    'requests',
-    'websocket_client>=0.55.0'
+    'aiohttp',
+    'aiofiles'
 ]
 
 # What packages are optional?
