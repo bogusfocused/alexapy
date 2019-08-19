@@ -11,7 +11,7 @@ import json
 import logging
 
 import time
-from typing import Any, cast, Callable, Dict, Optional, TYPE_CHECKING, Text, Union  # noqa pylint: disable=unused-import
+from typing import Any, cast, Callable, Coroutine, Dict, Optional, Text, Union  # noqa pylint: disable=unused-import
 import aiohttp
 
 from . import AlexaLogin  # noqa pylint
@@ -69,10 +69,10 @@ class WebsocketEchoClient():
 
     def __init__(self,
                  login: AlexaLogin,
-                 msg_callback: Callable[[Message], None],
-                 open_callback: Callable[[], None],
-                 close_callback: Callable[[], None],
-                 error_callback: Callable[[Text], None]
+                 msg_callback: Callable[[Message], Coroutine[Any, Any, None]],
+                 open_callback: Callable[[], Coroutine[Any, Any, None]],
+                 close_callback: Callable[[], Coroutine[Any, Any, None]],
+                 error_callback: Callable[[Text], Coroutine[Any, Any, None]]
                  ) -> None:
         # pylint: disable=too-many-arguments
         """Init for threading and WebSocket Connection."""
@@ -103,31 +103,40 @@ class WebsocketEchoClient():
             url += str(self._cookies['ubid-main'])
         url += "-" + str(int(time.time())) + "000"
         # url = "ws://localhost:8080/ws"
-        self.open_callback: Callable[[], None] = open_callback
-        self.msg_callback: Callable[[Message], None] = msg_callback
-        self.close_callback: Callable[[], None] = close_callback
-        self.error_callback: Callable[[Text], None] = error_callback
+        self.open_callback: \
+            Callable[[], Coroutine[Any, Any, None]] = open_callback
+        self.msg_callback: \
+            Callable[[Message], Coroutine[Any, Any, None]] = msg_callback
+        self.close_callback: \
+            Callable[[], Coroutine[Any, Any, None]] = close_callback
+        self.error_callback: \
+            Callable[[Text], Coroutine[Any, Any, None]] = error_callback
         self._wsurl: Text = url
         self.websocket: aiohttp.ClientWebSocketResponse
 
     async def async_run(self) -> None:
         """Start Async WebSocket Listener."""
+        import asyncio
         _LOGGER.debug("Connecting to %s with %s", self._wsurl, self._headers)
         self.websocket = \
             await self._session.ws_connect(self._wsurl,
                                            headers=self._headers)
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.process_messages())
         await self.async_on_open()
-        msg: aiohttp.WSMessage = await self.websocket.receive()
-        # _LOGGER.debug("msg: %s", msg)
+
+    async def process_messages(self) -> None:
+        """Start Async WebSocket Listener."""
+        _LOGGER.debug("Starting message parsing loop.")
         async for msg in self.websocket:
             _LOGGER.debug("msg: %s", msg)
             if msg.type == aiohttp.WSMsgType.BINARY:
-                self.on_message(cast(bytes, msg.data))
+                await self.on_message(cast(bytes, msg.data))
             elif msg.type == aiohttp.WSMsgType.ERROR:
-                self.on_error("WSMsgType error")
+                await self.on_error("WSMsgType error")
                 break
 
-    def on_message(self, message: bytes) -> None:
+    async def on_message(self, message: bytes) -> None:
         # pylint: disable=too-many-statements
         """Handle New Message."""
         _LOGGER.debug("Received WebSocket MSG.")
@@ -204,20 +213,18 @@ class WebsocketEchoClient():
                          ['payload']) = json.loads(  # type: ignore
                              (message_obj.json_payload
                               ['payload']))
-        self.msg_callback(message_obj)
+            await self.msg_callback(message_obj)
 
-    def on_error(self, error: Text) -> None:
+    async def on_error(self, error: Text) -> None:
         """Handle WebSocket Error."""
         _LOGGER.error("WebSocket Error %s", error)
         self.websocket.close()
-        self.error_callback(error)
+        await self.error_callback(error)
 
-    def on_close(self):
-        # type: () -> None
+    async def on_close(self) -> None:
         """Handle WebSocket Close."""
         _LOGGER.debug("WebSocket Connection Closed.")
-        self.websocket.close()
-        self.close_callback()
+        await self.close_callback()
 
     async def async_on_open(self) -> None:
         """Handle Async WebSocket Open."""
@@ -231,7 +238,7 @@ class WebsocketEchoClient():
         await self.websocket.send_bytes(self._encode_gw_handshake())
         await asyncio.sleep(1)
         await self.websocket.send_bytes(self._encode_gw_register())
-        self.open_callback()
+        await self.open_callback()
 
     def _encode_ws_handshake(self) -> bytes:
         # pylint: disable=no-self-use
