@@ -16,6 +16,6 @@ twine = "*"
 
 [packages]
 beautifulsoup4 = "*"
-requests = "*"
+aiohttp = "*"
+aiofiles = "*"
 simplejson = "*"
-websocket_client = "*"
