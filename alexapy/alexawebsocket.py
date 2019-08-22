@@ -120,7 +120,8 @@ class WebsocketEchoClient():
         _LOGGER.debug("Connecting to %s with %s", self._wsurl, self._headers)
         self.websocket = \
             await self._session.ws_connect(self._wsurl,
-                                           headers=self._headers)
+                                           headers=self._headers,
+                                           heartbeat=180)
         loop = asyncio.get_event_loop()
         loop.create_task(self.process_messages())
         await self.async_on_open()
