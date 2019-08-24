@@ -335,6 +335,8 @@ class AlexaLogin():
             if links_tag:
                 index = 0
                 for link in links_tag:
+                    if not link.string:
+                        continue
                     string = link.string.strip()
                     href = link['href']
                     # _LOGGER.debug("Found link: %s <%s>",
