@@ -371,7 +371,8 @@ class AlexaLogin():
                                    {'id': 'auth-select-device-form'})
         verificationcode_tag = soup.find('form', {'action': 'verify'})
         links_tag = soup.findAll('a', href=True)
-        find_links()
+        if self._debug:
+            find_links()
 
         # pull out Amazon error message
 
