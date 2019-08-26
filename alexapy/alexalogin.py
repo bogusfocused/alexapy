@@ -254,7 +254,7 @@ class AlexaLogin():
         #  breaking the configuration flow until refresh on browser.
         digit = None
         for datum, value in data.items():
-            if (value and value.startswith('link') and len(value) > 4 and
+            if (value and str(value).startswith('link') and len(value) > 4 and
                     value[4:].isdigit()):
                 digit = str(value[4:])
                 _LOGGER.debug("Found link selection %s in %s ", digit, datum)
