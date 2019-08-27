@@ -410,7 +410,7 @@ class AlexaLogin():
                     'input') else ""
                 message = (label.find('span').string).strip() if label.find(
                     'span') else ""
-                valuemessage = ("Option: {} = `{}`.\n".format(
+                valuemessage = ("* **`{}`**:\t `{}`.\n".format(
                     value, message)) if value != "" else ""
                 options_message += valuemessage
             _LOGGER.debug("Verification method requested: %s, %s",
