@@ -254,7 +254,7 @@ class AlexaLogin():
         #  breaking the configuration flow until refresh on browser.
         digit = None
         for datum, value in data.items():
-            if (value and value.startswith('link') and len(value) > 4 and
+            if (value and str(value).startswith('link') and len(value) > 4 and
                     value[4:].isdigit()):
                 digit = str(value[4:])
                 _LOGGER.debug("Found link selection %s in %s ", digit, datum)
@@ -335,6 +335,8 @@ class AlexaLogin():
             if links_tag:
                 index = 0
                 for link in links_tag:
+                    if not link.string:
+                        continue
                     string = link.string.strip()
                     href = link['href']
                     # _LOGGER.debug("Found link: %s <%s>",
@@ -369,7 +371,8 @@ class AlexaLogin():
                                    {'id': 'auth-select-device-form'})
         verificationcode_tag = soup.find('form', {'action': 'verify'})
         links_tag = soup.findAll('a', href=True)
-        find_links()
+        if self._debug:
+            find_links()
 
         # pull out Amazon error message
 
@@ -407,7 +410,7 @@ class AlexaLogin():
                     'input') else ""
                 message = (label.find('span').string).strip() if label.find(
                     'span') else ""
-                valuemessage = ("Option: {} = `{}`.\n".format(
+                valuemessage = ("* **`{}`**:\t `{}`.\n".format(
                     value, message)) if value != "" else ""
                 options_message += valuemessage
             _LOGGER.debug("Verification method requested: %s, %s",
