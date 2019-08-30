@@ -273,18 +273,6 @@ class AlexaLogin():
             site = str(self._lastreq.url)
             _LOGGER.debug("Loaded last request to %s ", site)
             resp = self._lastreq
-            html: Text = await self._lastreq.text()
-            #  get BeautifulSoup object of the html of the login page
-            soup: BeautifulSoup = BeautifulSoup(html, 'html.parser')
-            site = soup.find('form').get('action')
-            if site is None or site == "":
-                site = self._lastreq.url
-            elif site == 'verify':
-                import re
-                search_results = re.search(r'(.+)/(.*)',
-                                           self._lastreq.url)
-                assert search_results is not None
-                site = search_results.groups()[0] + "/verify"
         else:
             resp = await self._session.get(site)
             self._lastreq = resp
@@ -296,14 +284,13 @@ class AlexaLogin():
             else:
                 _LOGGER.debug("Get to %s was not redirected", site)
                 self._headers['Referer'] = str(site)
-
-        html = await resp.text()
+        html: Text = await resp.text()
         if self._debug:
             import aiofiles
             async with aiofiles.open(self._debugget, mode='wb') as localfile:
                 await localfile.write(await resp.read())
 
-        await self._process_page(html, site)
+        site = await self._process_page(html, site)
         missing_params = self._populate_data(site, data)
         if self._debug:
             _LOGGER.debug("Missing params: %s", missing_params)
@@ -324,12 +311,12 @@ class AlexaLogin():
                 async with aiofiles.open(self._debugpost,
                                          mode='wb') as localfile:
                     await localfile.write(await post_resp.read())
-            await self._process_page(await post_resp.text(), site)
+            site = await self._process_page(await post_resp.text(), site)
 
-    async def _process_page(self, html: str, site: Text) -> None:
+    async def _process_page(self, html: str, site: Text) -> Text:
         # pylint: disable=too-many-branches,too-many-locals,
         # pylint: disable=too-many-statements
-
+        """Process html to set login.status and find form post url."""
         def find_links() -> None:
             links = {}
             if links_tag:
@@ -355,6 +342,7 @@ class AlexaLogin():
                               links)
             self._links = links
 
+        _LOGGER.debug("Processing %s", site)
         soup: BeautifulSoup = BeautifulSoup(html, 'html.parser')
 
         status: Dict[Text, Union[Text, bool]] = {}
@@ -371,6 +359,7 @@ class AlexaLogin():
                                    {'id': 'auth-select-device-form'})
         verificationcode_tag = soup.find('form', {'action': 'verify'})
         links_tag = soup.findAll('a', href=True)
+        form_tag = soup.find('form')
         if self._debug:
             find_links()
 
@@ -387,8 +376,6 @@ class AlexaLogin():
             _LOGGER.debug("Found standard login page")
             #  scrape login page to get all the inputs required for login
             self._data = self.get_inputs(soup, {'name': 'signIn'})
-            formsite = soup.find('form').get('action')
-            site = formsite if formsite else site
         elif captcha_tag is not None:
             _LOGGER.debug("Captcha requested")
             status['captcha_required'] = True
@@ -487,6 +474,22 @@ class AlexaLogin():
                     _LOGGER.debug("If credentials correct, please report"
                                   " these missing values: %s", missing)
         self.status = status
+        # determine post url
+        if form_tag:
+            formsite: Text = form_tag.get('action')
+            if formsite and formsite == 'verify':
+                import re
+                search_results = re.search(r'(.+)/(.*)',
+                                           site)
+                assert search_results is not None
+                site = search_results.groups()[0] + "/verify"
+                _LOGGER.debug("Found post url to verify; converting to %s",
+                              site)
+            elif formsite:
+                site = formsite
+                _LOGGER.debug("Found post url to %s",
+                              site)
+        return site
 
     def _populate_data(self,
                        site: Text,
