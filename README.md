@@ -1,6 +1,6 @@
 # alexapy
 
-Python Package for controlling Alexa devices (echo dot, etc) programmatically. This was originally designed for  [alexa_media_player](https://github.com/keatontaylor/custom_components) a cutstom_component for [Home Assistant](https://www.home-assistant.io/).
+Python Package for controlling Alexa devices (echo dot, etc) programmatically. This was originally designed for  [alexa_media_player](https://github.com/custom-components/custom_components) a cutstom_component for [Home Assistant](https://www.home-assistant.io/).
 
 **NOTE:** Alexa has no official API; therefore, this library may stop
 working at any time without warning.

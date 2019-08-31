@@ -106,7 +106,7 @@ class AlexaAPI():
         Alexa.Calendar.PlayTomorrow
         Alexa.Calendar.PlayToday
         Alexa.Calendar.PlayNext
-        https://github.com/keatontaylor/alexa_media_player/wiki#sequence-commands-versions--100
+        https://github.com/custom-components/alexa_media_player/wiki#sequence-commands-versions--100
 
         """
         operation_payload = {
