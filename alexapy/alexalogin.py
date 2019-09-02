@@ -111,7 +111,7 @@ class AlexaLogin():
                             self._cookies[str(key)] = value.strip('\"')
                     else:
                         self._cookies = cookies
-            except (OSError, EOFError) as ex:
+            except (OSError, EOFError, pickle.UnpicklingError) as ex:
                 template = ("An exception of type {0} occurred."
                             " Arguments:\n{1!r}")
                 message = template.format(type(ex).__name__, ex.args)
