@@ -40,11 +40,16 @@ class AlexaLogin():
                  debug: bool = False) -> None:
         # pylint: disable=too-many-arguments
         """Set up initial connection and log in."""
+        import ssl
+        import certifi
         prefix: Text = "alexa_media"
         self._url: Text = url
         self._email: Text = email
         self._password: Text = password
         self._session: Optional[aiohttp.ClientSession] = None
+        self._ssl = ssl.create_default_context(
+            purpose=ssl.Purpose.SERVER_AUTH, cafile=certifi.where()
+        )
         self._cookies: Optional[Dict[Text, Text]] = {}
         self._headers: Dict[Text, Text] = {}
         self._data: Optional[Dict[Text, Text]] = None
@@ -197,7 +202,8 @@ class AlexaLogin():
         assert self._session is not None
         get_resp = await self._session.get('https://alexa.' + self._url +
                                            '/api/bootstrap',
-                                           cookies=self._cookies
+                                           cookies=self._cookies,
+                                           ssl=self._ssl
                                            )
         from simplejson import JSONDecodeError as SimpleJSONDecodeError
         from json import JSONDecodeError
@@ -291,7 +297,10 @@ class AlexaLogin():
             _LOGGER.debug("Loaded last request to %s ", site)
             resp = self._lastreq
         else:
-            resp = await self._session.get(site)
+            resp = await self._session.get(site,
+                                           cookies=self._cookies,
+                                           headers=self._headers,
+                                           ssl=self._ssl)
             self._lastreq = resp
             if resp.history:
                 _LOGGER.debug("Get to %s was redirected to %s",
@@ -322,7 +331,8 @@ class AlexaLogin():
             post_resp = await self._session.post(site,
                                                  data=self._data,
                                                  cookies=self._cookies,
-                                                 headers=self._headers)
+                                                 headers=self._headers,
+                                                 ssl=self._ssl)
             self._headers['Referer'] = str(site)
             self._lastreq = post_resp
             if self._debug:
