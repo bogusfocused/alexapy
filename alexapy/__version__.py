@@ -7,4 +7,4 @@ Python Package for controlling Alexa devices (echo dot, etc) programmatically.
 For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
-__version__ = '1.0.1'
+__version__ = '1.0.2'
