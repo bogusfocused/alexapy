@@ -30,10 +30,13 @@ VERSION = None
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    'beautifulsoup4',
+    'bs4',
     'simplejson',
     'aiohttp',
-    'aiofiles'
+    'aiofiles',
+    'yarl',
+    'requests',
+    'certifi'
 ]
 
 # What packages are optional?

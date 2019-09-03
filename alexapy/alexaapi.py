@@ -61,19 +61,22 @@ class AlexaAPI():
     async def _post_request(self, uri, data):
         return await self._session.post(self._url + uri, json=data,
                                         cookies=self._login._cookies,
-                                        headers=self._login._headers)
+                                        headers=self._login._headers,
+                                        ssl=self._login._ssl)
 
     @_catch_all_exceptions
     async def _put_request(self, uri, data):
         return await self._session.put(self._url + uri, json=data,
                                        cookies=self._login._cookies,
-                                       headers=self._login._headers)
+                                       headers=self._login._headers,
+                                       ssl=self._login._ssl)
 
     @_catch_all_exceptions
     async def _get_request(self, uri, data=None):
         return await self._session.get(self._url + uri, json=data,
                                        cookies=self._login._cookies,
-                                       headers=self._login._headers)
+                                       headers=self._login._headers,
+                                       ssl=self._login._ssl)
 
     async def send_sequence(self, sequence, **kwargs):
         """Send sequence command.
@@ -415,7 +418,8 @@ class AlexaAPI():
         response = await session.get('https://alexa.' + url +
                                      '/api/bluetooth?cached=false',
                                      cookies=login._cookies,
-                                     headers=login._headers)
+                                     headers=login._headers,
+                                     ssl=login._ssl)
         return await response.json()
 
     async def set_bluetooth(self, mac):
@@ -441,7 +445,8 @@ class AlexaAPI():
         response = await session.get('https://alexa.' + url +
                                      '/api/devices-v2/device',
                                      cookies=login._cookies,
-                                     headers=login._headers)
+                                     headers=login._headers,
+                                     ssl=login._ssl)
         AlexaAPI.devices[login.email] = (await response.json())['devices']
         return (await response.json())['devices']
 
@@ -454,7 +459,8 @@ class AlexaAPI():
         response = await session.get('https://alexa.' + url +
                                      '/api/bootstrap',
                                      cookies=login._cookies,
-                                     headers=login._headers)
+                                     headers=login._headers,
+                                     ssl=login._ssl)
         return (await response.json())['authentication']
 
     @staticmethod
@@ -468,7 +474,8 @@ class AlexaAPI():
                                      'startTime=&size=' + str(items) +
                                      '&offset=1',
                                      cookies=login._cookies,
-                                     headers=login._headers)
+                                     headers=login._headers,
+                                     ssl=login._ssl)
         return (await response.json())['activities']
 
     @staticmethod
@@ -480,7 +487,8 @@ class AlexaAPI():
         response = await session.get('https://alexa.' + url +
                                      '/api/device-preferences',
                                      cookies=login._cookies,
-                                     headers=login._headers)
+                                     headers=login._headers,
+                                     ssl=login._ssl)
         return await response.json()
 
     @staticmethod
@@ -493,7 +501,8 @@ class AlexaAPI():
                                      '/api/behaviors/automations' + '?limit=' +
                                      str(items),
                                      cookies=login._cookies,
-                                     headers=login._headers)
+                                     headers=login._headers,
+                                     ssl=login._ssl)
         return await response.json()
 
     @staticmethod
@@ -535,6 +544,7 @@ class AlexaAPI():
                                       '/api/phoenix/state',
                                       cookies=login._cookies,
                                       headers=login._headers,
+                                      ssl=login._ssl,
                                       json=data)
         _LOGGER.debug("get_guard_state response: %s",
                       await response.json())
@@ -564,6 +574,7 @@ class AlexaAPI():
                                      '/api/phoenix/state',
                                      cookies=login._cookies,
                                      headers=login._headers,
+                                     ssl=login._ssl,
                                      json=data)
         _LOGGER.debug("set_guard_state response: %s for data: %s ",
                       await response.json(), json.dumps(data))
@@ -585,7 +596,8 @@ class AlexaAPI():
         response = await session.get('https://alexa.' + url +
                                      '/api/phoenix',
                                      cookies=login._cookies,
-                                     headers=login._headers)
+                                     headers=login._headers,
+                                     ssl=login._ssl)
         # _LOGGER.debug("Response: %s",
         #               await response.json())
         return json.loads((await response.json())['networkDetail'])
@@ -606,7 +618,8 @@ class AlexaAPI():
         response = await session.get('https://alexa.' + url +
                                      '/api/notifications',
                                      cookies=login._cookies,
-                                     headers=login._headers)
+                                     headers=login._headers,
+                                     ssl=login._ssl)
         # _LOGGER.debug("Response: %s",
         #               response.json())
         return await response.json()['notifications']
@@ -627,7 +640,8 @@ class AlexaAPI():
         response = await session.get('https://alexa.' + url +
                                      '/api/dnd/device-status-list',
                                      cookies=login._cookies,
-                                     headers=login._headers)
+                                     headers=login._headers,
+                                     ssl=login._ssl)
         # _LOGGER.debug("Response: %s",
         #               response.json())
         return await response.json()

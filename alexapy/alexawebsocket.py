@@ -88,6 +88,7 @@ class WebsocketEchoClient():
         self._session = login.session
         self._cookies = login._cookies
         self._headers = login._headers
+        self._ssl = login._ssl
         cookies = ""  # type: Text
         assert self._cookies is not None
         for key, value in self._cookies.items():
@@ -121,7 +122,8 @@ class WebsocketEchoClient():
         self.websocket = \
             await self._session.ws_connect(self._wsurl,
                                            headers=self._headers,
-                                           heartbeat=180)
+                                           heartbeat=180,
+                                           ssl=self._ssl)
         loop = asyncio.get_event_loop()
         loop.create_task(self.process_messages())
         await self.async_on_open()
