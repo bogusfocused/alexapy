@@ -238,11 +238,11 @@ class WebsocketEchoClient():
         _LOGGER.debug("Initating Async Handshake.")
         await self.websocket.send_bytes(bytes("0x99d4f71a 0x0000001d A:HTUNE",
                                               'utf-8'))
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.1)
         await self.websocket.send_bytes(self._encode_ws_handshake())
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.1)
         await self.websocket.send_bytes(self._encode_gw_handshake())
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.1)
         await self.websocket.send_bytes(self._encode_gw_register())
         await self.open_callback()
 
