@@ -162,7 +162,7 @@ class AlexaLogin():
                 _LOGGER.debug("Loaded %s cookies", numcookies)
         await self.login(cookies=self._cookies)
 
-    def reset_login(self) -> None:
+    def reset(self) -> None:
         """Remove data related to existing login."""
         self._session = None
         self._cookies = None
@@ -234,7 +234,7 @@ class AlexaLogin():
                                "please try to relogin but if this persists "
                                "this is unrecoverable, please report"),
                               ex)
-                self.reset_login()
+                self.reset()
                 return False
         assert self._session is not None
         get_resp = await self._session.get('https://alexa.' + self._url +
@@ -260,7 +260,7 @@ class AlexaLogin():
             _LOGGER.debug("Logged in as %s", email)
             return True
         _LOGGER.debug("Not logged in due to email mismatch")
-        self.reset_login()
+        self.reset()
         return False
 
     def _create_session(self, force=False) -> None:
