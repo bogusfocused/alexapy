@@ -14,7 +14,6 @@ import logging
 
 import aiohttp
 from bs4 import BeautifulSoup
-from yarl import URL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +42,7 @@ class AlexaLogin():
         import ssl
         import certifi
         prefix: Text = "alexa_media"
+        self._prefix = "https://alexa."
         self._url: Text = url
         self._email: Text = email
         self._password: Text = password
@@ -130,7 +130,7 @@ class AlexaLogin():
                     self._cookies[str(key)] = value.strip('\"')
             elif isinstance(cookies,
                             defaultdict):
-                _LOGGER.debug("Found aiohttpCookieJar")
+                _LOGGER.debug("Trying to load aiohttpCookieJar to session")
                 cookie_jar: aiohttp.CookieJar = \
                     self._session.cookie_jar
                 try:
@@ -238,7 +238,7 @@ class AlexaLogin():
                 self.reset()
                 return False
         assert self._session is not None
-        get_resp = await self._session.get('https://alexa.' + self._url +
+        get_resp = await self._session.get(self._prefix + self._url +
                                            '/api/bootstrap',
                                            cookies=cookies,
                                            ssl=self._ssl
@@ -279,27 +279,30 @@ class AlexaLogin():
             #  initiate session
             self._session = aiohttp.ClientSession(headers=self._headers)
 
-    def _prepare_cookies_from_session(self, site: URL) -> None:
+    def _prepare_cookies_from_session(self, site: Text) -> None:
         """Update self._cookies from aiohttp session.
 
         This should only be needed to run after a succesful login.
         """
         assert self._session is not None
-        from http.cookies import BaseCookie
-        cookies: BaseCookie = \
-            self._session.cookie_jar.filter_cookies(URL(site))
-        self._cookies = {}
-        for _, cookie in cookies.items():
+        cookie_jar = self._session.cookie_jar
+        if self._cookies is None:
+            self._cookies = {}
+        _LOGGER.debug("Updating self._cookies with %s session cookies:\n%s",
+                      site,
+                      self._print_session_cookies())
+        for cookie in cookie_jar:
             oldvalue = self._cookies[cookie.key] \
                 if cookie.key in self._cookies else ""
-            if self._debug:
-                _LOGGER.debug(
-                    '%s: key: %s value: %s -> %s',
-                    site.host,
-                    cookie.key,
-                    oldvalue,
-                    cookie.value)
-            self._cookies[cookie.key] = cookie.value
+            if cookie['domain'] == str(site):
+                self._cookies[cookie.key] = cookie.value
+                if self._debug:
+                    _LOGGER.debug(
+                        '%s: key: %s value: %s -> %s',
+                        site,
+                        cookie.key,
+                        oldvalue,
+                        cookie.value)
 
     def _print_session_cookies(self) -> Text:
         result: Text = ""
@@ -322,11 +325,12 @@ class AlexaLogin():
             self.status = {}
             self.status['login_successful'] = True
             _LOGGER.debug("Log in successful with cookies")
+            self._prepare_cookies_from_session(self._url)
             return
         _LOGGER.debug("No valid cookies for log in; using credentials")
         #  site = 'https://www.' + self._url + '/gp/sign-in.html'
         #  use alexa site instead
-        site: Text = 'https://alexa.' + self._url
+        site: Text = self._prefix + self._url
         assert self._session is not None
         #  This will process links which is used for debug only to force going
         #  to other links.  Warning, chrome will cache any link parameters
@@ -425,7 +429,7 @@ class AlexaLogin():
                     #               href)
                     if href.startswith('/'):
                         links[str(index)] = (string,
-                                             ('https://alexa.' + self._url
+                                             (self._prefix + self._url
                                               + href))
                         index += 1
                     elif href.startswith('http'):
@@ -535,7 +539,7 @@ class AlexaLogin():
                 _LOGGER.debug("Login confirmed; saving cookie to %s",
                               self._cookiefile)
                 status['login_successful'] = True
-                self._prepare_cookies_from_session(URL(self._url))
+                self._prepare_cookies_from_session(self._url)
                 assert self._session is not None
                 _LOGGER.debug("Saving cookie: %s",
                               self._print_session_cookies())
