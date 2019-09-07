@@ -64,6 +64,7 @@ class AlexaLogin():
         self._debug: bool = debug
         self._links: Optional[Dict[Text, Tuple[Text, Text]]] = {}
         self._options: Optional[Dict[Text, Text]] = {}
+        self._create_session()
 
     @property
     def email(self) -> Text:
@@ -178,7 +179,6 @@ class AlexaLogin():
         - Checks for existence of csrf cookie
         Returns false if no csrf found; necessary to issue commands
         """
-        self._create_session()
         if self._debug:
             from json import dumps
             _LOGGER.debug("Testing whether logged in to alexa.%s",
@@ -225,12 +225,8 @@ class AlexaLogin():
         self.reset_login()
         return False
 
-    def _create_session(self) -> None:
-        if not self._session:
-            #  initiate session
-
-            self._session = aiohttp.ClientSession()
-
+    def _create_session(self, force=False) -> None:
+        if not self._session or force:
             #  define session headers
             self._headers = {
                 'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; Win64; x64) '
@@ -240,6 +236,9 @@ class AlexaLogin():
                            'application/xml;q=0.9,*/*;q=0.8'),
                 'Accept-Language': '*'
             }
+
+            #  initiate session
+            self._session = aiohttp.ClientSession(headers=self._headers)
 
     def _prepare_cookies_from_session(self, site: URL) -> None:
         """Update self._cookies from aiohttp session."""
@@ -270,7 +269,6 @@ class AlexaLogin():
         #  site = 'https://www.' + self._url + '/gp/sign-in.html'
         #  use alexa site instead
         site: Text = 'https://alexa.' + self._url
-        self._create_session()
         assert self._session is not None
         #  This will process links which is used for debug only to force going
         #  to other links.  Warning, chrome will cache any link parameters
