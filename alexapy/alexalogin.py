@@ -205,6 +205,7 @@ class AlexaLogin():
                                            cookies=self._cookies,
                                            ssl=self._ssl
                                            )
+        await self._process_resp(get_resp)
         from simplejson import JSONDecodeError as SimpleJSONDecodeError
         from json import JSONDecodeError
         from aiohttp.client_exceptions import ContentTypeError
@@ -300,14 +301,7 @@ class AlexaLogin():
                                            headers=self._headers,
                                            ssl=self._ssl)
             self._lastreq = resp
-            if resp.history:
-                _LOGGER.debug("Get to %s was redirected to %s",
-                              site,
-                              resp.url)
-                self._headers['Referer'] = str(resp.url)
-            else:
-                _LOGGER.debug("Get to %s was not redirected", site)
-                self._headers['Referer'] = str(site)
+            site = await self._process_resp(resp)
         html: Text = await resp.text()
         if self._debug:
             import aiofiles
@@ -331,8 +325,9 @@ class AlexaLogin():
                                                  cookies=self._cookies,
                                                  headers=self._headers,
                                                  ssl=self._ssl)
-            self._headers['Referer'] = str(site)
             self._lastreq = post_resp
+            site = await self._process_resp(post_resp)
+
             if self._debug:
                 import aiofiles
                 async with aiofiles.open(self._debugpost,
@@ -340,6 +335,23 @@ class AlexaLogin():
                     await localfile.write(await post_resp.read())
             self._prepare_cookies_from_session(URL(site))
             site = await self._process_page(await post_resp.text(), site)
+
+    async def _process_resp(self, resp) -> Text:
+        url = resp.request_info.url
+        method = resp.request_info.method
+        headers = resp.request_info.headers
+        _LOGGER.debug("%s: \n%s with\n%s",
+                      method,
+                      url,
+                      headers)
+        self._headers['Referer'] = str(url)
+        if resp.history:
+            _LOGGER.debug("%s: redirected to\n%s",
+                          method,
+                          resp.url)
+            self._headers['Referer'] = str(resp.url)
+            return resp.url
+        return url
 
     async def _process_page(self, html: str, site: Text) -> Text:
         # pylint: disable=too-many-branches,too-many-locals,
