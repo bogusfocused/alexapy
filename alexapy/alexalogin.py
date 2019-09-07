@@ -624,7 +624,7 @@ class AlexaLogin():
                 self._data['option'] = claimsoption
             if (authopt is not None and 'otpDeviceContext' in self._data):
                 assert self._options is not None
-                self._data['otpDeviceContext'] = self._options[authopt]
+                self._data['otpDeviceContext'] = self._options[str(authopt)]
             if (verificationcode is not None and 'code' in self._data):
                 self._data['code'] = verificationcode
             self._data.pop('', None)  # remove '' key
