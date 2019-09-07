@@ -171,6 +171,7 @@ class AlexaLogin():
         self.status = {}
         self._links = {}
         self._options = {}
+        self._create_session()
         import os
         if ((self._cookiefile) and os.path.exists(self._cookiefile)):
             try:
