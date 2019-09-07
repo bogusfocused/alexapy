@@ -183,7 +183,10 @@ class AlexaLogin():
             from json import dumps
             _LOGGER.debug("Testing whether logged in to alexa.%s",
                           self._url)
-            _LOGGER.debug("Cookies: %s", dumps(self._cookies))
+            _LOGGER.debug("Cookies: %s",
+                          cookies)
+            _LOGGER.debug("Session Cookies:\n%s",
+                          self._print_session_cookies())
             _LOGGER.debug("Header: %s", dumps(self._headers))
         if not cookies:
             cookies = {}
@@ -253,6 +256,15 @@ class AlexaLogin():
             #               (cookie.key, cookie.value))
             self._cookies[cookie.key] = cookie.value
 
+    def _print_session_cookies(self) -> Text:
+        result: Text = ""
+        assert self._session is not None
+        for cookie in self._session.cookie_jar:
+            result += "{}: {}={}\n".format(cookie["domain"],
+                                           cookie.key,
+                                           cookie.value)
+        return result
+
     async def login(self,
                     cookies: Optional[Dict[Text, Text]] = None,
                     data: Optional[Dict[Text, Optional[Text]]] = None) -> None:
@@ -314,7 +326,8 @@ class AlexaLogin():
         if self._debug:
             from json import dumps
             _LOGGER.debug("Missing params: %s", missing_params)
-            _LOGGER.debug("Cookies: %s", dumps(self._cookies))
+            _LOGGER.debug("Session Cookies:\n%s",
+                          self._print_session_cookies())
             _LOGGER.debug("Submit Form Data: %s", dumps(self._data))
             _LOGGER.debug("Header: %s", dumps(self._headers))
 
