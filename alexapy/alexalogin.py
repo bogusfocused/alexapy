@@ -520,8 +520,8 @@ class AlexaLogin():
                     _LOGGER.debug("If credentials correct, please report"
                                   " these missing values: %s", missing)
         self.status = status
-        # determine post url
-        if form_tag:
+        # determine post url if not logged in
+        if form_tag and 'login_successful' not in status:
             formsite: Text = form_tag.get('action')
             if formsite and formsite == 'verify':
                 import re
