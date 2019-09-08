@@ -86,18 +86,20 @@ class WebsocketEchoClient():
                                                'ALEGCNGL9K0HM')
         assert login.session is not None
         self._session = login.session
-        self._cookies = login._cookies
+        cookie_jar = self._session._cookie_jar
+        self._cookies: Dict[Text, Text] = {}
         self._headers = login._headers
         self._ssl = login._ssl
         cookies = ""  # type: Text
         assert self._cookies is not None
-        for key, value in self._cookies.items():
-            cookies += str(key) + "=" + value + "; "
+        for cookie in cookie_jar:
+            if cookie['domain'] == login.url:
+                cookies += "{}={}; ".format(cookie.key, cookie.value)
+                self._cookies[cookie.key] = cookie.value
         self._headers['Cookie'] = cookies
-        # the old websocket-client auto populates the csrf and origin, which
+        # the old websocket-client auto populates origin, which
         # aiohttp does not and is necessary for Amazon to accept a login
         self._headers['Origin'] = "https://alexa." + login.url
-        self._headers['csrf'] = self._cookies['csrf']
         if 'ubid-abcde' in self._cookies:
             url += str(self._cookies['ubid-abcde'])
         elif 'ubid-main' in self._cookies:
@@ -235,11 +237,11 @@ class WebsocketEchoClient():
         _LOGGER.debug("Initating Async Handshake.")
         await self.websocket.send_bytes(bytes("0x99d4f71a 0x0000001d A:HTUNE",
                                               'utf-8'))
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.1)
         await self.websocket.send_bytes(self._encode_ws_handshake())
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.1)
         await self.websocket.send_bytes(self._encode_gw_handshake())
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.1)
         await self.websocket.send_bytes(self._encode_gw_register())
         await self.open_callback()
 
