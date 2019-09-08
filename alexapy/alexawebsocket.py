@@ -86,16 +86,14 @@ class WebsocketEchoClient():
                                                'ALEGCNGL9K0HM')
         assert login.session is not None
         self._session = login.session
-        cookie_jar = self._session._cookie_jar
-        self._cookies: Dict[Text, Text] = {}
+        self._cookies: Dict[Text, Text] = login._cookies \
+            if login._cookies else {}
         self._headers = login._headers
         self._ssl = login._ssl
         cookies = ""  # type: Text
         assert self._cookies is not None
-        for cookie in cookie_jar:
-            if cookie['domain'] == login.url:
-                cookies += "{}={}; ".format(cookie.key, cookie.value)
-                self._cookies[cookie.key] = cookie.value
+        for key, value in self._cookies.items():
+            cookies += "{}={}; ".format(key, value)
         self._headers['Cookie'] = cookies
         # the old websocket-client auto populates origin, which
         # aiohttp does not and is necessary for Amazon to accept a login

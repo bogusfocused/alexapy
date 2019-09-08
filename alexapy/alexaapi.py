@@ -82,7 +82,7 @@ class AlexaAPI():
         response = await getattr(self._session, method)(
             url,
             json=data,
-            # cookies=self._login._cookies,
+            cookies=self._login._cookies,
             headers=self._login._headers,
             ssl=self._login._ssl)
         _LOGGER.debug("%s: %s %s returned %s:%s:%s",
@@ -141,6 +141,7 @@ class AlexaAPI():
         response = await getattr(session, method)(
             url,
             json=data,
+            cookies=login._cookies,
             headers=login._headers,
             ssl=login._ssl,
             )
