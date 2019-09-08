@@ -578,7 +578,9 @@ class AlexaLogin():
                 site = search_results.groups()[0] + "/verify"
                 _LOGGER.debug("Found post url to verify; converting to %s",
                               site)
-            elif formsite:
+            elif formsite and formsite == 'get':
+                _LOGGER.debug("Found post url to get; ignoring")
+            elif formsite != 'get':
                 site = formsite
                 _LOGGER.debug("Found post url to %s",
                               site)
