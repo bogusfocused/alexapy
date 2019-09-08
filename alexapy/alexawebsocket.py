@@ -97,10 +97,9 @@ class WebsocketEchoClient():
                 cookies += "{}={}; ".format(cookie.key, cookie.value)
                 self._cookies[cookie.key] = cookie.value
         self._headers['Cookie'] = cookies
-        # the old websocket-client auto populates the csrf and origin, which
+        # the old websocket-client auto populates origin, which
         # aiohttp does not and is necessary for Amazon to accept a login
         self._headers['Origin'] = "https://alexa." + login.url
-        self._headers['csrf'] = self._cookies['csrf']
         if 'ubid-abcde' in self._cookies:
             url += str(self._cookies['ubid-abcde'])
         elif 'ubid-main' in self._cookies:

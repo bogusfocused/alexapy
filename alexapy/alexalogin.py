@@ -224,19 +224,6 @@ class AlexaLogin():
             _LOGGER.debug("Session Cookies:\n%s",
                           self._print_session_cookies())
             _LOGGER.debug("Header: %s", dumps(self._headers))
-        if not cookies:
-            cookies = {}
-        else:
-            try:
-                cookies['csrf']
-            except KeyError as ex:
-                _LOGGER.error(("Login successful, but AlexaLogin session is "
-                               "missing required token: %s "
-                               "please try to relogin but if this persists "
-                               "this is unrecoverable, please report"),
-                              ex)
-                self.reset()
-                return False
         assert self._session is not None
         get_resp = await self._session.get(self._prefix + self._url +
                                            '/api/bootstrap',
