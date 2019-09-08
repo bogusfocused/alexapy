@@ -135,7 +135,8 @@ class AlexaLogin():
                     self._session.cookie_jar
                 try:
                     cookie_jar.load(self._cookiefile)
-                    numcookies = len(cookie_jar)
+                    self._prepare_cookies_from_session(self._url)
+                    numcookies = len(self._cookies)
                 except (OSError,
                         EOFError,
                         TypeError,
@@ -165,7 +166,7 @@ class AlexaLogin():
     def reset(self) -> None:
         """Remove data related to existing login."""
         self._session = None
-        self._cookies = None
+        self._cookies = {}
         self._data = None
         self._lastreq = None
         self.status = {}
@@ -307,7 +308,7 @@ class AlexaLogin():
         # pylint: disable=too-many-statements
         """Login to Amazon."""
         data = data or {}
-        if (cookies is not None and await self.test_loggedin(cookies)):
+        if (cookies and await self.test_loggedin(cookies)):
             _LOGGER.debug("Using cookies to log in")
             self.status = {}
             self.status['login_successful'] = True
