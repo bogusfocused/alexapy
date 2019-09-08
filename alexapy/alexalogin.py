@@ -8,9 +8,9 @@ For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
 
-from typing import Any, Callable, cast, Dict, List, Optional, Text, Tuple, Union  # noqa pylint: disable=unused-import
-
 import logging
+from typing import (Any, Callable, Dict,  # noqa pylint: disable=unused-import
+                    List, Optional, Text, Tuple, Union, cast)
 
 import aiohttp
 from bs4 import BeautifulSoup
