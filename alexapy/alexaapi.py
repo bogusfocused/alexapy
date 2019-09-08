@@ -55,6 +55,15 @@ class AlexaAPI():
         self._session = login.session
         self._url: Text = 'https://alexa.' + login.url
         self._login._headers['Referer'] = "{}/spa/index.html".format(self._url)
+        try:
+            assert self._login._cookies is not None
+            csrf = self._login._cookies['csrf']
+            self._login._headers['csrf'] = csrf
+        except KeyError as ex:
+            _LOGGER.warning(
+                ("AlexaLogin session is missing required token: %s "
+                 "This may result in authorization errors, please report"),
+                ex)
 
     @_catch_all_exceptions
     async def _request(self,
@@ -76,10 +85,10 @@ class AlexaAPI():
             # cookies=self._login._cookies,
             headers=self._login._headers,
             ssl=self._login._ssl)
-        _LOGGER.debug("%s: %s returned %s:%s:%s",
+        _LOGGER.debug("%s: %s %s returned %s:%s:%s",
                       response.request_info.method,
                       response.request_info.url,
-                      #   response.request_info.headers,
+                      response.request_info.headers,
                       response.status,
                       response.reason,
                       response.content_type)
