@@ -8,13 +8,12 @@ For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
 
-from typing import Any, Callable, cast, Dict, List, Optional, Text, Tuple, Union  # noqa pylint: disable=unused-import
-
 import logging
+from typing import (Any, Callable, Dict,  # noqa pylint: disable=unused-import
+                    List, Optional, Text, Tuple, Union, cast)
 
 import aiohttp
 from bs4 import BeautifulSoup
-from yarl import URL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +42,7 @@ class AlexaLogin():
         import ssl
         import certifi
         prefix: Text = "alexa_media"
+        self._prefix = "https://alexa."
         self._url: Text = url
         self._email: Text = email
         self._password: Text = password
@@ -64,6 +64,7 @@ class AlexaLogin():
         self._debug: bool = debug
         self._links: Optional[Dict[Text, Tuple[Text, Text]]] = {}
         self._options: Optional[Dict[Text, Text]] = {}
+        self._create_session()
 
     @property
     def email(self) -> Text:
@@ -94,28 +95,20 @@ class AlexaLogin():
         import pickle
         import aiofiles
         from requests.cookies import RequestsCookieJar
+        from collections import defaultdict
         cookies: Optional[RequestsCookieJar] = None
+        numcookies: int = 0
+        assert self._session is not None
         if self._cookiefile:
+            _LOGGER.debug(
+                "Trying to load pickled cookie from file %s",
+                self._cookiefile)
             try:
-                _LOGGER.debug(
-                    "Trying to load cookie from file %s", self._cookiefile)
                 async with aiofiles.open(self._cookiefile, 'rb') as myfile:
                     cookies = pickle.loads(await myfile.read())
                     _LOGGER.debug("cookie loaded: %s %s",
                                   type(cookies),
                                   cookies)
-                    # escape extra quote marks from  Requests cookie
-                    if isinstance(cookies,
-                                  RequestsCookieJar):
-                        self._cookies = cookies.get_dict()
-                        assert self._cookies is not None
-                        for key, value in cookies.items():
-                            _LOGGER.debug('Key: "%s", Value: "%s"',
-                                          key,
-                                          value)
-                            self._cookies[str(key)] = value.strip('\"')
-                    else:
-                        self._cookies = cookies
             except (OSError, EOFError, pickle.UnpicklingError) as ex:
                 template = ("An exception of type {0} occurred."
                             " Arguments:\n{1!r}")
@@ -123,18 +116,63 @@ class AlexaLogin():
                 _LOGGER.debug(
                     "Error loading pickled cookie from %s: %s",
                     self._cookiefile, message)
-
+            # escape extra quote marks from Requests cookie
+            if isinstance(cookies,
+                          RequestsCookieJar):
+                _LOGGER.debug("Loading RequestsCookieJar")
+                cookies = cookies.get_dict()
+                assert self._cookies is not None
+                assert cookies is not None
+                for key, value in cookies.items():
+                    _LOGGER.debug('Key: "%s", Value: "%s"',
+                                  key,
+                                  value)
+                    self._cookies[str(key)] = value.strip('\"')
+            elif isinstance(cookies,
+                            defaultdict):
+                _LOGGER.debug("Trying to load aiohttpCookieJar to session")
+                cookie_jar: aiohttp.CookieJar = \
+                    self._session.cookie_jar
+                try:
+                    cookie_jar.load(self._cookiefile)
+                    self._prepare_cookies_from_session(self._url)
+                    numcookies = len(self._cookies)
+                except (OSError,
+                        EOFError,
+                        TypeError,
+                        AttributeError) as ex:
+                    template = ("An exception of type {0} occurred."
+                                " Arguments:\n{1!r}")
+                    message = template.format(type(ex).__name__,
+                                              ex.args)
+                    _LOGGER.debug(
+                        "Error loading aiohttpcookie from %s: %s",
+                        self._cookiefile, message)
+                    # a cookie_jar.load error can corrupt the session
+                    # so we must recreate it
+                    self._create_session(True)
+            elif isinstance(cookies,
+                            dict):
+                _LOGGER.debug("Found dict cookie")
+                self._cookies = cookies
+                numcookies = len(self._cookies)
+            else:
+                _LOGGER.debug("Ignoring unknown file %s",
+                              type(cookies))
+            if numcookies:
+                _LOGGER.debug("Loaded %s cookies", numcookies)
         await self.login(cookies=self._cookies)
 
-    def reset_login(self) -> None:
+    def reset(self) -> None:
         """Remove data related to existing login."""
         self._session = None
-        self._cookies = None
+        self._cookies = {}
         self._data = None
         self._lastreq = None
         self.status = {}
         self._links = {}
         self._options = {}
+        self._create_session()
         import os
         if ((self._cookiefile) and os.path.exists(self._cookiefile)):
             try:
@@ -178,33 +216,22 @@ class AlexaLogin():
         - Checks for existence of csrf cookie
         Returns false if no csrf found; necessary to issue commands
         """
-        self._create_session()
         if self._debug:
             from json import dumps
             _LOGGER.debug("Testing whether logged in to alexa.%s",
                           self._url)
-            _LOGGER.debug("Cookies: %s", dumps(self._cookies))
+            _LOGGER.debug("Cookies: %s",
+                          cookies)
+            _LOGGER.debug("Session Cookies:\n%s",
+                          self._print_session_cookies())
             _LOGGER.debug("Header: %s", dumps(self._headers))
-        if not cookies:
-            cookies = {}
-        else:
-            try:
-                cookies['csrf']
-            except KeyError as ex:
-                _LOGGER.error(("Login successful, but AlexaLogin session is "
-                               "missing required token: %s "
-                               "please try to relogin but if this persists "
-                               "this is unrecoverable, please report"),
-                              ex)
-                self.reset_login()
-                return False
-            self._cookies = cookies
         assert self._session is not None
-        get_resp = await self._session.get('https://alexa.' + self._url +
+        get_resp = await self._session.get(self._prefix + self._url +
                                            '/api/bootstrap',
-                                           cookies=self._cookies,
+                                           cookies=cookies,
                                            ssl=self._ssl
                                            )
+        await self._process_resp(get_resp)
         from simplejson import JSONDecodeError as SimpleJSONDecodeError
         from json import JSONDecodeError
         from aiohttp.client_exceptions import ContentTypeError
@@ -222,15 +249,11 @@ class AlexaLogin():
             _LOGGER.debug("Logged in as %s", email)
             return True
         _LOGGER.debug("Not logged in due to email mismatch")
-        self.reset_login()
+        self.reset()
         return False
 
-    def _create_session(self) -> None:
-        if not self._session:
-            #  initiate session
-
-            self._session = aiohttp.ClientSession()
-
+    def _create_session(self, force=False) -> None:
+        if not self._session or force:
             #  define session headers
             self._headers = {
                 'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; Win64; x64) '
@@ -241,17 +264,42 @@ class AlexaLogin():
                 'Accept-Language': '*'
             }
 
-    def _prepare_cookies_from_session(self, site: URL) -> None:
-        """Update self._cookies from aiohttp session."""
+            #  initiate session
+            self._session = aiohttp.ClientSession(headers=self._headers)
+
+    def _prepare_cookies_from_session(self, site: Text) -> None:
+        """Update self._cookies from aiohttp session.
+
+        This should only be needed to run after a succesful login.
+        """
         assert self._session is not None
-        from http.cookies import BaseCookie
-        cookies: BaseCookie = \
-            self._session.cookie_jar.filter_cookies(URL(site))
-        assert self._cookies is not None
-        for _, cookie in cookies.items():
-            # _LOGGER.debug('Key: "%s", Value: "%s"' %
-            #               (cookie.key, cookie.value))
-            self._cookies[cookie.key] = cookie.value
+        cookie_jar = self._session.cookie_jar
+        if self._cookies is None:
+            self._cookies = {}
+        _LOGGER.debug("Updating self._cookies with %s session cookies:\n%s",
+                      site,
+                      self._print_session_cookies())
+        for cookie in cookie_jar:
+            oldvalue = self._cookies[cookie.key] \
+                if cookie.key in self._cookies else ""
+            if cookie['domain'] == str(site):
+                self._cookies[cookie.key] = cookie.value
+                if self._debug:
+                    _LOGGER.debug(
+                        '%s: key: %s value: %s -> %s',
+                        site,
+                        cookie.key,
+                        oldvalue,
+                        cookie.value)
+
+    def _print_session_cookies(self) -> Text:
+        result: Text = ""
+        assert self._session is not None
+        for cookie in self._session.cookie_jar:
+            result += "{}: {}={}\n".format(cookie["domain"],
+                                           cookie.key,
+                                           cookie.value)
+        return result
 
     async def login(self,
                     cookies: Optional[Dict[Text, Text]] = None,
@@ -260,17 +308,17 @@ class AlexaLogin():
         # pylint: disable=too-many-statements
         """Login to Amazon."""
         data = data or {}
-        if (cookies is not None and await self.test_loggedin(cookies)):
+        if (cookies and await self.test_loggedin(cookies)):
             _LOGGER.debug("Using cookies to log in")
             self.status = {}
             self.status['login_successful'] = True
             _LOGGER.debug("Log in successful with cookies")
+            self._prepare_cookies_from_session(self._url)
             return
         _LOGGER.debug("No valid cookies for log in; using credentials")
         #  site = 'https://www.' + self._url + '/gp/sign-in.html'
         #  use alexa site instead
-        site: Text = 'https://alexa.' + self._url
-        self._create_session()
+        site: Text = self._prefix + self._url
         assert self._session is not None
         #  This will process links which is used for debug only to force going
         #  to other links.  Warning, chrome will cache any link parameters
@@ -298,31 +346,22 @@ class AlexaLogin():
             resp = self._lastreq
         else:
             resp = await self._session.get(site,
-                                           cookies=self._cookies,
-                                           headers=self._headers,
                                            ssl=self._ssl)
             self._lastreq = resp
-            if resp.history:
-                _LOGGER.debug("Get to %s was redirected to %s",
-                              site,
-                              resp.url)
-                self._headers['Referer'] = str(resp.url)
-            else:
-                _LOGGER.debug("Get to %s was not redirected", site)
-                self._headers['Referer'] = str(site)
+            site = await self._process_resp(resp)
         html: Text = await resp.text()
         if self._debug:
             import aiofiles
             async with aiofiles.open(self._debugget, mode='wb') as localfile:
                 await localfile.write(await resp.read())
 
-        self._prepare_cookies_from_session(URL(site))
         site = await self._process_page(html, site)
         missing_params = self._populate_data(site, data)
         if self._debug:
             from json import dumps
             _LOGGER.debug("Missing params: %s", missing_params)
-            _LOGGER.debug("Cookies: %s", dumps(self._cookies))
+            _LOGGER.debug("Session Cookies:\n%s",
+                          self._print_session_cookies())
             _LOGGER.debug("Submit Form Data: %s", dumps(self._data))
             _LOGGER.debug("Header: %s", dumps(self._headers))
 
@@ -330,18 +369,40 @@ class AlexaLogin():
         if not missing_params:
             post_resp = await self._session.post(site,
                                                  data=self._data,
-                                                 cookies=self._cookies,
                                                  headers=self._headers,
                                                  ssl=self._ssl)
-            self._headers['Referer'] = str(site)
+            # headers need to be submitted to have the referer
             self._lastreq = post_resp
+            site = await self._process_resp(post_resp)
+
             if self._debug:
                 import aiofiles
                 async with aiofiles.open(self._debugpost,
                                          mode='wb') as localfile:
                     await localfile.write(await post_resp.read())
-            self._prepare_cookies_from_session(URL(site))
             site = await self._process_page(await post_resp.text(), site)
+
+    async def _process_resp(self, resp) -> Text:
+        url = resp.request_info.url
+        method = resp.request_info.method
+        status = resp.status
+        reason = resp.reason
+        headers = resp.request_info.headers
+        _LOGGER.debug("%s: \n%s with\n%s\n returned %s:%s with response %s",
+                      method,
+                      url,
+                      headers,
+                      status,
+                      reason,
+                      resp.headers)
+        self._headers['Referer'] = str(url)
+        if resp.history:
+            _LOGGER.debug("%s: redirected to\n%s",
+                          method,
+                          resp.url)
+            self._headers['Referer'] = str(resp.url)
+            return resp.url
+        return url
 
     async def _process_page(self, html: str, site: Text) -> Text:
         # pylint: disable=too-many-branches,too-many-locals,
@@ -361,7 +422,7 @@ class AlexaLogin():
                     #               href)
                     if href.startswith('/'):
                         links[str(index)] = (string,
-                                             ('https://alexa.' + self._url
+                                             (self._prefix + self._url
                                               + href))
                         index += 1
                     elif href.startswith('http'):
@@ -390,6 +451,7 @@ class AlexaLogin():
         verificationcode_tag = soup.find('form', {'action': 'verify'})
         links_tag = soup.findAll('a', href=True)
         form_tag = soup.find('form')
+        missingcookies_tag = soup.find(id="ap_error_return_home")
         if self._debug:
             find_links()
 
@@ -465,26 +527,35 @@ class AlexaLogin():
             _LOGGER.debug("Verification code requested:")
             status['verificationcode_required'] = True
             self._data = self.get_inputs(soup, {'action': 'verify'})
+        elif missingcookies_tag is not None:
+            _LOGGER.debug("Error page detected:")
+            links = missingcookies_tag.findAll('a', href=True)
+            for link in links:
+                href = link['href']
+            status['ap_error'] = True
+            status['ap_error_href'] = href
         else:
             _LOGGER.debug("Captcha/2FA not requested; confirming login.")
-            if await self.test_loggedin(cookies=self._cookies):
+            if await self.test_loggedin():
                 _LOGGER.debug("Login confirmed; saving cookie to %s",
                               self._cookiefile)
                 status['login_successful'] = True
-                self._prepare_cookies_from_session(URL(site))
-                _LOGGER.debug("Saving cookie: %s", self._cookies)
-                with open(self._cookiefile, 'wb') as myfile:
-                    import pickle
-                    try:
-                        pickle.dump(self._cookies, myfile)
-                    except OSError as ex:
-                        template = ("An exception of type {0} occurred."
-                                    " Arguments:\n{1!r}")
-                        message = template.format(type(ex).__name__, ex.args)
-                        _LOGGER.debug(
-                            "Error saving pickled cookie to %s: %s",
-                            self._cookiefile,
-                            message)
+                self._prepare_cookies_from_session(self._url)
+                assert self._session is not None
+                _LOGGER.debug("Saving cookie: %s",
+                              self._print_session_cookies())
+                try:
+                    cookie_jar = self._session.cookie_jar
+                    assert isinstance(cookie_jar, aiohttp.CookieJar)
+                    cookie_jar.save(self._cookiefile)
+                except OSError as ex:
+                    template = ("An exception of type {0} occurred."
+                                " Arguments:\n{1!r}")
+                    message = template.format(type(ex).__name__, ex.args)
+                    _LOGGER.debug(
+                        "Error saving pickled cookie to %s: %s",
+                        self._cookiefile,
+                        message)
                 #  remove extraneous Content-Type to avoid 500 errors
                 self._headers.pop('Content-Type', None)
 
@@ -497,8 +568,8 @@ class AlexaLogin():
                     _LOGGER.debug("If credentials correct, please report"
                                   " these missing values: %s", missing)
         self.status = status
-        # determine post url
-        if form_tag:
+        # determine post url if not logged in
+        if form_tag and 'login_successful' not in status:
             formsite: Text = form_tag.get('action')
             if formsite and formsite == 'verify':
                 import re
@@ -508,7 +579,14 @@ class AlexaLogin():
                 site = search_results.groups()[0] + "/verify"
                 _LOGGER.debug("Found post url to verify; converting to %s",
                               site)
-            elif formsite:
+            elif formsite and formsite == 'get':
+                if 'ap_error' in status:
+                    assert isinstance(status['ap_error_href'], str)
+                    site = status['ap_error_href']
+                _LOGGER.debug("Found post url to get; forcing get to %s",
+                              site)
+                self._lastreq = None
+            elif formsite != 'get':
                 site = formsite
                 _LOGGER.debug("Found post url to %s",
                               site)
@@ -558,7 +636,7 @@ class AlexaLogin():
                 self._data['option'] = claimsoption
             if (authopt is not None and 'otpDeviceContext' in self._data):
                 assert self._options is not None
-                self._data['otpDeviceContext'] = self._options[authopt]
+                self._data['otpDeviceContext'] = self._options[str(authopt)]
             if (verificationcode is not None and 'code' in self._data):
                 self._data['code'] = verificationcode
             self._data.pop('', None)  # remove '' key
