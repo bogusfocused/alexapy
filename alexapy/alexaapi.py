@@ -135,10 +135,10 @@ class AlexaAPI():
             headers=login._headers,
             ssl=login._ssl,
             )
-        _LOGGER.debug("static %s: %s returned %s:%s:%s",
+        _LOGGER.debug("static %s: %s %s returned %s:%s:%s",
                       response.request_info.method,
                       response.request_info.url,
-                      #   response.request_info.headers,
+                      response.request_info.headers,
                       response.status,
                       response.reason,
                       response.content_type)

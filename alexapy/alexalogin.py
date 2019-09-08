@@ -384,11 +384,16 @@ class AlexaLogin():
     async def _process_resp(self, resp) -> Text:
         url = resp.request_info.url
         method = resp.request_info.method
+        status = resp.status
+        reason = resp.reason
         headers = resp.request_info.headers
-        _LOGGER.debug("%s: \n%s with\n%s",
+        _LOGGER.debug("%s: \n%s with\n%s\n returned %s:%s with response %s",
                       method,
                       url,
-                      headers)
+                      headers,
+                      status,
+                      reason,
+                      resp.headers)
         self._headers['Referer'] = str(url)
         if resp.history:
             _LOGGER.debug("%s: redirected to\n%s",
