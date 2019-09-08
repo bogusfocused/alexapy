@@ -128,6 +128,7 @@ class AlexaLogin():
                                   key,
                                   value)
                     self._cookies[str(key)] = value.strip('\"')
+                numcookies = len(self._cookies)
             elif isinstance(cookies,
                             defaultdict):
                 _LOGGER.debug("Trying to load aiohttpCookieJar to session")
