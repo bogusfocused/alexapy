@@ -85,10 +85,10 @@ class AlexaAPI():
             # cookies=self._login._cookies,
             headers=self._login._headers,
             ssl=self._login._ssl)
-        _LOGGER.debug("%s: %s returned %s:%s:%s",
+        _LOGGER.debug("%s: %s %s returned %s:%s:%s",
                       response.request_info.method,
                       response.request_info.url,
-                      #   response.request_info.headers,
+                      response.request_info.headers,
                       response.status,
                       response.reason,
                       response.content_type)
