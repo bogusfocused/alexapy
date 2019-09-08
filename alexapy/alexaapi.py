@@ -718,3 +718,26 @@ class AlexaAPI():
             )
         return await response.json(content_type=None)
 
+    @staticmethod
+    @_catch_all_exceptions
+    async def clear_history(login: AlexaLogin, items: int = 50) -> bool:
+        """Clear entries in history."""
+        response = await AlexaAPI._static_request(
+            'get',
+            login,
+            '/api/activities',
+            query={"size": items,
+                   "offset": -1
+                   }
+            )
+        import urllib.parse
+        for activity in response.json(content_type=None)['activities']:
+            response = await AlexaAPI._static_request(
+                'delete',
+                login,
+                '/api/activities/{}'.format(
+                    urllib.parse.quote_plus(activity['id'])))
+            _LOGGER.debug("Attempting to delete %s",
+                          activity['id'],
+                          )
+        return True
