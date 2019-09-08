@@ -451,6 +451,7 @@ class AlexaLogin():
         verificationcode_tag = soup.find('form', {'action': 'verify'})
         links_tag = soup.findAll('a', href=True)
         form_tag = soup.find('form')
+        missingcookies_tag = soup.find(id="ap_error_return_home")
         if self._debug:
             find_links()
 
@@ -526,6 +527,13 @@ class AlexaLogin():
             _LOGGER.debug("Verification code requested:")
             status['verificationcode_required'] = True
             self._data = self.get_inputs(soup, {'action': 'verify'})
+        elif missingcookies_tag is not None:
+            _LOGGER.debug("Error page detected:")
+            links = missingcookies_tag.findAll('a', href=True)
+            for link in links:
+                href = link['href']
+            status['ap_error'] = True
+            status['ap_error_href'] = href
         else:
             _LOGGER.debug("Captcha/2FA not requested; confirming login.")
             if await self.test_loggedin():
@@ -572,7 +580,12 @@ class AlexaLogin():
                 _LOGGER.debug("Found post url to verify; converting to %s",
                               site)
             elif formsite and formsite == 'get':
-                _LOGGER.debug("Found post url to get; ignoring")
+                if 'ap_error' in status:
+                    assert isinstance(status['ap_error_href'], str)
+                    site = status['ap_error_href']
+                _LOGGER.debug("Found post url to get; forcing get to %s",
+                              site)
+                self._lastreq = None
             elif formsite != 'get':
                 site = formsite
                 _LOGGER.debug("Found post url to %s",
