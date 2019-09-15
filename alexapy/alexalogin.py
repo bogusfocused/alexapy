@@ -164,8 +164,17 @@ class AlexaLogin():
                 _LOGGER.debug("Loaded %s cookies", numcookies)
         await self.login(cookies=self._cookies)
 
-    def reset(self) -> None:
+    async def close(self) -> None:
+        """Close connection for login."""
+        if self._session and not self._session.closed:
+            if self._session._connector_owner:
+                assert self._session._connector is not None
+                await self._session._connector.close()
+            self._session._connector = None
+
+    async def reset(self) -> None:
         """Remove data related to existing login."""
+        await self.close()
         self._session = None
         self._cookies = {}
         self._data = None
@@ -250,7 +259,7 @@ class AlexaLogin():
             _LOGGER.debug("Logged in as %s", email)
             return True
         _LOGGER.debug("Not logged in due to email mismatch")
-        self.reset()
+        await self.reset()
         return False
 
     def _create_session(self, force=False) -> None:
