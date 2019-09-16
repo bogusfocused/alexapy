@@ -644,7 +644,7 @@ class AlexaLogin():
                 self._data['guess'] = captcha
             if (securitycode is not None and 'otpCode' in self._data):
                 self._data['otpCode'] = securitycode
-                self._data['rememberDevice'] = "True"
+                self._data['rememberDevice'] = "true"
             if (claimsoption is not None and 'option' in self._data):
                 self._data['option'] = claimsoption
             if (authopt is not None and 'otpDeviceContext' in self._data):
