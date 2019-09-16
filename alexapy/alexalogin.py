@@ -64,6 +64,7 @@ class AlexaLogin():
         self._debug: bool = debug
         self._links: Optional[Dict[Text, Tuple[Text, Text]]] = {}
         self._options: Optional[Dict[Text, Text]] = {}
+        self._site: Optional[Text] = None
         self._create_session()
 
     @property
@@ -182,6 +183,7 @@ class AlexaLogin():
         self.status = {}
         self._links = {}
         self._options = {}
+        self._site = None
         self._create_session()
         import os
         if ((self._cookiefile) and os.path.exists(self._cookiefile)):
@@ -328,7 +330,10 @@ class AlexaLogin():
         _LOGGER.debug("No valid cookies for log in; using credentials")
         #  site = 'https://www.' + self._url + '/gp/sign-in.html'
         #  use alexa site instead
-        site: Text = self._prefix + self._url
+        if not self._site:
+            site: Text = self._prefix + self._url
+        else:
+            site = self._site
         assert self._session is not None
         #  This will process links which is used for debug only to force going
         #  to other links.  Warning, chrome will cache any link parameters
@@ -382,15 +387,14 @@ class AlexaLogin():
                                                  headers=self._headers,
                                                  ssl=self._ssl)
             # headers need to be submitted to have the referer
-            self._lastreq = post_resp
-            site = await self._process_resp(post_resp)
-
             if self._debug:
                 import aiofiles
                 async with aiofiles.open(self._debugpost,
                                          mode='wb') as localfile:
                     await localfile.write(await post_resp.read())
-            site = await self._process_page(await post_resp.text(), site)
+            self._lastreq = post_resp
+            site = await self._process_resp(post_resp)
+            self._site = await self._process_page(await post_resp.text(), site)
 
     async def _process_resp(self, resp) -> Text:
         url = resp.request_info.url
