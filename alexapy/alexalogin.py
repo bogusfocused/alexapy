@@ -15,6 +15,8 @@ from typing import (Any, Callable, Dict,  # noqa pylint: disable=unused-import
 import aiohttp
 from bs4 import BeautifulSoup
 
+from .cookiejar import FixedCookieJar
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -277,7 +279,9 @@ class AlexaLogin():
             }
 
             #  initiate session
-            self._session = aiohttp.ClientSession(headers=self._headers)
+            cookie_jar = FixedCookieJar()
+            self._session = aiohttp.ClientSession(cookie_jar=cookie_jar,
+                                                  headers=self._headers)
 
     def _prepare_cookies_from_session(self, site: Text) -> None:
         """Update self._cookies from aiohttp session.
@@ -365,6 +369,7 @@ class AlexaLogin():
             resp = self._lastreq
         else:
             resp = await self._session.get(site,
+                                           headers=self._headers,
                                            ssl=self._ssl)
             self._lastreq = resp
             site = await self._process_resp(resp)
