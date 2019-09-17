@@ -308,9 +308,13 @@ class AlexaLogin():
         result: Text = ""
         assert self._session is not None
         for cookie in self._session.cookie_jar:
-            result += "{}: {}={}\n".format(cookie["domain"],
+            result += "{}: expires:{} max-age:{} {}={}\n".format(
+                cookie["domain"],
+                cookie["expires"],
+                cookie["max-age"],
                 cookie.key,
-                                           cookie.value)
+                cookie.value
+                )
         return result
 
     async def login(self,
