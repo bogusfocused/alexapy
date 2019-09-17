@@ -309,7 +309,7 @@ class AlexaLogin():
         assert self._session is not None
         for cookie in self._session.cookie_jar:
             result += "{}: {}={}\n".format(cookie["domain"],
-                                           cookie.key,
+                cookie.key,
                                            cookie.value)
         return result
 
@@ -397,6 +397,12 @@ class AlexaLogin():
             self._site = await self._process_page(await post_resp.text(), site)
 
     async def _process_resp(self, resp) -> Text:
+        if resp.history:
+            for item in resp.history:
+                _LOGGER.debug("%s: redirected from\n%s",
+                              item.method,
+                              item.url)
+            self._headers['Referer'] = str(resp.url)
         url = resp.request_info.url
         method = resp.request_info.method
         status = resp.status
@@ -410,12 +416,6 @@ class AlexaLogin():
                       reason,
                       resp.headers)
         self._headers['Referer'] = str(url)
-        if resp.history:
-            _LOGGER.debug("%s: redirected to\n%s",
-                          method,
-                          resp.url)
-            self._headers['Referer'] = str(resp.url)
-            return resp.url
         return url
 
     async def _process_page(self, html: str, site: Text) -> Text:
