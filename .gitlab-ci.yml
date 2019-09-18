@@ -19,23 +19,30 @@ lint:
     - make lint
     - make typing
 
-bump:
-  stage: stage
-  script:
-    - make bump
-  only:
-    - master@keatontaylor/alexapy
-
-deploy_production:
+bump_and_publish:
   stage: deploy
   variables:
-    TWINE_USERNAME: $PRODUCTION_USERNAME
-    TWINE_PASSWORD: $PRODUCTION_PASSWORD
+    PYPI_USERNAME: $PRODUCTION_USERNAME
+    PYPI_PASSWORD: $PRODUCTION_PASSWORD
+    GL_TOKEN: $GL_TOKEN
   script:
-    - python setup.py sdist
-    - twine upload dist/*
+    - make bump_and_publish
   artifacts:
     paths:
       - dist
   only:
     - master@keatontaylor/alexapy
+
+# deploy_production:
+#   stage: deploy
+#   variables:
+#     TWINE_USERNAME: $PRODUCTION_USERNAME
+#     TWINE_PASSWORD: $PRODUCTION_PASSWORD
+#   script:
+#     - python setup.py sdist
+#     - twine upload dist/*
+#   artifacts:
+#     paths:
+#       - dist
+#   only:
+#     - master@keatontaylor/alexapy
