@@ -5,6 +5,7 @@ coverage:
 	#pipenv run py.test -s --verbose --cov-report term-missing --cov-report xml --cov=alexapy tests
 bump:
 	pipenv run semantic-release version
+	pipenv run semantic-release changelog
 clean:
 	rm -rf dist/ build/ .egg alexapy.egg-info/
 init:

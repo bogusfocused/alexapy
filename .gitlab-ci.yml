@@ -4,17 +4,29 @@ image: python:3.7-alpine
 
 stages:
   - test
+  - stage
   - deploy
 
 before_script:
    - pip install twine
-#    - make init
-#
-# lint:
-#   stage: test
-#   script:
-#     - make lint
-#     - make typing
+   - make init
+
+lint:
+  stage: test
+  script:
+    - make lint
+
+typing:
+  stage: test
+  script:
+    - make lint
+
+bump:
+  stage: stage
+  script:
+    - make bump
+  only:
+    - master@keatontaylor/alexapy
 
 deploy_production:
   stage: deploy
