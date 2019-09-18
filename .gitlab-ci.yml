@@ -29,8 +29,9 @@ bump_and_publish:
     PYPI_PASSWORD: $PRODUCTION_PASSWORD
     GL_TOKEN: $GL_TOKEN
   script:
+    - git config --global user.name "semantic-release (via GitLabCI)"
+    - git config --global user.email "semantic-release@GitLabCI"
     - "semantic-release publish"
-    - "semantic-release changelog"
   artifacts:
     paths:
       - dist
