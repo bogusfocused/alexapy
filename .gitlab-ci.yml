@@ -8,32 +8,29 @@ stages:
   - deploy
 
 before_script:
-   - pip install twine
+   - pip install twine pipenv-to-requirements
    - apk update
-   - apk add --no-cache --update python3-dev gcc build-base make
-   - make init
+   - apk add --no-cache --update python3-dev gcc build-base make git
+   - pipenv_to_requirements
+   - pip install -e . -r requirements.txt -r requirements-dev.txt
 
 lint:
   stage: test
   script:
-    - make lint
-    - make typing
+    - "flake8 alexapy"
+    - "pydocstyle alexapy"
+    - "pylint alexapy"
+    - "mypy --ignore-missing-imports alexapy"
 
-bump:
-  stage: stage
-  script:
-    - make bump
-  only:
-    - master@keatontaylor/alexapy
-
-deploy_production:
+bump_and_publish:
   stage: deploy
   variables:
-    TWINE_USERNAME: $PRODUCTION_USERNAME
-    TWINE_PASSWORD: $PRODUCTION_PASSWORD
+    PYPI_USERNAME: $PRODUCTION_USERNAME
+    PYPI_PASSWORD: $PRODUCTION_PASSWORD
+    GL_TOKEN: $GL_TOKEN
   script:
-    - python setup.py sdist
-    - twine upload dist/*
+    - "semantic-release publish"
+    - "semantic-release changelog"
   artifacts:
     paths:
       - dist
