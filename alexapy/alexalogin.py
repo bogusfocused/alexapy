@@ -15,6 +15,8 @@ from typing import (Any, Callable, Dict,  # noqa pylint: disable=unused-import
 import aiohttp
 from bs4 import BeautifulSoup
 
+from .cookiejar import FixedCookieJar
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -64,6 +66,7 @@ class AlexaLogin():
         self._debug: bool = debug
         self._links: Optional[Dict[Text, Tuple[Text, Text]]] = {}
         self._options: Optional[Dict[Text, Text]] = {}
+        self._site: Optional[Text] = None
         self._create_session()
 
     @property
@@ -164,8 +167,17 @@ class AlexaLogin():
                 _LOGGER.debug("Loaded %s cookies", numcookies)
         await self.login(cookies=self._cookies)
 
-    def reset(self) -> None:
+    async def close(self) -> None:
+        """Close connection for login."""
+        if self._session and not self._session.closed:
+            if self._session._connector_owner:
+                assert self._session._connector is not None
+                await self._session._connector.close()
+            self._session._connector = None
+
+    async def reset(self) -> None:
         """Remove data related to existing login."""
+        await self.close()
         self._session = None
         self._cookies = {}
         self._data = None
@@ -173,6 +185,7 @@ class AlexaLogin():
         self.status = {}
         self._links = {}
         self._options = {}
+        self._site = None
         self._create_session()
         import os
         if ((self._cookiefile) and os.path.exists(self._cookiefile)):
@@ -250,7 +263,7 @@ class AlexaLogin():
             _LOGGER.debug("Logged in as %s", email)
             return True
         _LOGGER.debug("Not logged in due to email mismatch")
-        self.reset()
+        await self.reset()
         return False
 
     def _create_session(self, force=False) -> None:
@@ -266,7 +279,9 @@ class AlexaLogin():
             }
 
             #  initiate session
-            self._session = aiohttp.ClientSession(headers=self._headers)
+            cookie_jar = FixedCookieJar()
+            self._session = aiohttp.ClientSession(cookie_jar=cookie_jar,
+                                                  headers=self._headers)
 
     def _prepare_cookies_from_session(self, site: Text) -> None:
         """Update self._cookies from aiohttp session.
@@ -297,9 +312,13 @@ class AlexaLogin():
         result: Text = ""
         assert self._session is not None
         for cookie in self._session.cookie_jar:
-            result += "{}: {}={}\n".format(cookie["domain"],
-                                           cookie.key,
-                                           cookie.value)
+            result += "{}: expires:{} max-age:{} {}={}\n".format(
+                cookie["domain"],
+                cookie["expires"],
+                cookie["max-age"],
+                cookie.key,
+                cookie.value
+                )
         return result
 
     async def login(self,
@@ -319,7 +338,10 @@ class AlexaLogin():
         _LOGGER.debug("No valid cookies for log in; using credentials")
         #  site = 'https://www.' + self._url + '/gp/sign-in.html'
         #  use alexa site instead
-        site: Text = self._prefix + self._url
+        if not self._site:
+            site: Text = self._prefix + self._url
+        else:
+            site = self._site
         assert self._session is not None
         #  This will process links which is used for debug only to force going
         #  to other links.  Warning, chrome will cache any link parameters
@@ -347,6 +369,7 @@ class AlexaLogin():
             resp = self._lastreq
         else:
             resp = await self._session.get(site,
+                                           headers=self._headers,
                                            ssl=self._ssl)
             self._lastreq = resp
             site = await self._process_resp(resp)
@@ -373,17 +396,22 @@ class AlexaLogin():
                                                  headers=self._headers,
                                                  ssl=self._ssl)
             # headers need to be submitted to have the referer
-            self._lastreq = post_resp
-            site = await self._process_resp(post_resp)
-
             if self._debug:
                 import aiofiles
                 async with aiofiles.open(self._debugpost,
                                          mode='wb') as localfile:
                     await localfile.write(await post_resp.read())
-            site = await self._process_page(await post_resp.text(), site)
+            self._lastreq = post_resp
+            site = await self._process_resp(post_resp)
+            self._site = await self._process_page(await post_resp.text(), site)
 
     async def _process_resp(self, resp) -> Text:
+        if resp.history:
+            for item in resp.history:
+                _LOGGER.debug("%s: redirected from\n%s",
+                              item.method,
+                              item.url)
+            self._headers['Referer'] = str(resp.url)
         url = resp.request_info.url
         method = resp.request_info.method
         status = resp.status
@@ -397,12 +425,6 @@ class AlexaLogin():
                       reason,
                       resp.headers)
         self._headers['Referer'] = str(url)
-        if resp.history:
-            _LOGGER.debug("%s: redirected to\n%s",
-                          method,
-                          resp.url)
-            self._headers['Referer'] = str(resp.url)
-            return resp.url
         return url
 
     async def _process_page(self, html: str, site: Text) -> Text:
@@ -598,6 +620,8 @@ class AlexaLogin():
                        data: Dict[str, Optional[str]]) -> bool:
         """Populate self._data with info from data."""
         # pull data from configurator
+        password: Optional[Text] = (None if 'password' not in data
+                                    else data['password'])
         captcha: Optional[Text] = (None if 'captcha' not in data
                                    else data['captcha'])
         securitycode: Optional[Text] = (None if 'securitycode' not in data
@@ -625,14 +649,15 @@ class AlexaLogin():
             if "email" in self._data and self._data['email'] == "":
                 self._data['email'] = self._email
             if "password" in self._data and self._data['password'] == "":
-                self._data['password'] = self._password
+                self._data['password'] = (self._password if not password
+                                          else password)
             if "rememberMe" in self._data:
                 self._data['rememberMe'] = "true"
             if (captcha is not None and 'guess' in self._data):
                 self._data['guess'] = captcha
             if (securitycode is not None and 'otpCode' in self._data):
                 self._data['otpCode'] = securitycode
-                self._data['rememberDevice'] = "True"
+                self._data['rememberDevice'] = "true"
             if (claimsoption is not None and 'option' in self._data):
                 self._data['option'] = claimsoption
             if (authopt is not None and 'otpDeviceContext' in self._data):
