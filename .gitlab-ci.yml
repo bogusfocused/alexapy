@@ -4,26 +4,33 @@ image: python:3.7-alpine
 
 stages:
   - test
+  - stage
   - deploy
 
 before_script:
-   - pip install twine
-#    - make init
-#
-# lint:
-#   stage: test
-#   script:
-#     - make lint
-#     - make typing
+   - pip install twine pipenv-to-requirements
+   - apk update
+   - apk add --no-cache --update python3-dev gcc build-base make git
+   - pipenv_to_requirements
+   - pip install -e . -r requirements.txt -r requirements-dev.txt
 
-deploy_production:
+lint:
+  stage: test
+  script:
+    - "flake8 alexapy"
+    - "pydocstyle alexapy"
+    - "pylint alexapy"
+    - "mypy --ignore-missing-imports alexapy"
+
+bump_and_publish:
   stage: deploy
   variables:
-    TWINE_USERNAME: $PRODUCTION_USERNAME
-    TWINE_PASSWORD: $PRODUCTION_PASSWORD
+    PYPI_USERNAME: $PRODUCTION_USERNAME
+    PYPI_PASSWORD: $PRODUCTION_PASSWORD
+    GL_TOKEN: $GL_TOKEN
   script:
-    - python setup.py sdist
-    - twine upload dist/*
+    - "semantic-release publish"
+    - "semantic-release changelog"
   artifacts:
     paths:
       - dist
