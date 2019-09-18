@@ -15,7 +15,7 @@ from typing import (Any, Dict, List,  # noqa pylint: disable=unused-import
 from yarl import URL
 from aiohttp import ClientResponse
 
-from .alexalogin import AlexaLogin
+from . import AlexaLogin
 
 _LOGGER = logging.getLogger(__name__)
 
