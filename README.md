@@ -1,6 +1,8 @@
 # alexapy
 
-Python Package for controlling Alexa devices (echo dot, etc) programmatically. This was originally designed for  [alexa_media_player](https://github.com/custom-components/custom_components) a cutstom_component for [Home Assistant](https://www.home-assistant.io/).
+[![pipeline status](https://gitlab.com/keatontaylor/alexapy/badges/master/pipeline.svg)](https://gitlab.com/keatontaylor/alexapy/commits/master)
+
+Python Package for controlling Alexa devices (echo dot, etc) programmatically. This was originally designed for [alexa_media_player](https://github.com/custom-components/alexa_media_player) a custom_component for [Home Assistant](https://www.home-assistant.io/).
 
 **NOTE:** Alexa has no official API; therefore, this library may stop
 working at any time without warning.
@@ -21,7 +23,7 @@ Additional scaffolding from [simplisafe-python](https://github.com/bachya/simpli
 7.  Update `README.md` with any new documentation.
 8.  Run tests and ensure 100% code coverage for your contribution: `make coverage`
 9.  Ensure you have no linting errors: `make lint`
-10. Ensure you have no typed your code correctly: `make typing`
+10. Ensure you have typed your code correctly: `make typing`
 11. Add yourself to `AUTHORS.md`.
 12. Submit a pull request!
 
