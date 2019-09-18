@@ -14,7 +14,7 @@ import time
 from typing import Any, cast, Callable, Coroutine, Dict, Optional, Text, Union  # noqa pylint: disable=unused-import
 import aiohttp
 
-from . import AlexaLogin  # noqa pylint
+from .alexalogin import AlexaLogin  # noqa pylint
 
 _LOGGER = logging.getLogger(__name__)
 
