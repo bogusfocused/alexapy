@@ -9,17 +9,15 @@ stages:
 
 before_script:
    - pip install twine
+   - apk update
+   - apk add make
    - make init
 
 lint:
   stage: test
   script:
     - make lint
-
-typing:
-  stage: test
-  script:
-    - make lint
+    - make typing
 
 bump:
   stage: stage
