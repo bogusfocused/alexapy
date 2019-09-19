@@ -7,8 +7,9 @@ bump:
 	pipenv run semantic-release release
 	pipenv run semantic-release changelog
 bump_and_publish:
-	pipenv run semantic-release publish --noop
-	pipenv run semantic-release changelog
+	pipenv run semantic-release publish
+check_vulns:
+	pipenv check
 clean:
 	rm -rf dist/ build/ .egg alexapy.egg-info/
 init:
@@ -26,6 +27,9 @@ publish:
 	pipenv run python setup.py sdist bdist_wheel
 	pipenv run twine upload dist/*
 	rm -rf dist/ build/ .egg alexapy.egg-info/
+setup_env:
+	pip3 install pip pipenv
+	pipenv sync --three --dev
 test:
 	#Not implemented yet
 	#pipenv run py.test
