@@ -1,6 +1,18 @@
 # This file is a template, and might need editing before it works on your project.
 # Official docker image.
-image: python:3.7-alpine
+image: python:3.7
+
+variables:
+  PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
+  PIPENV_CACHE_DIR: $CI_PROJECT_DIR/.cache/pipenv
+  PIPENV_VENV_IN_PROJECT: "true"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - $PIP_CACHE_DIR
+    - $PIPENV_CACHE_DIR
+    - .venv/
 
 stages:
   - test
@@ -8,19 +20,15 @@ stages:
   - deploy
 
 before_script:
-   - pip install twine pipenv-to-requirements
-   - apk update
-   - apk add --no-cache --update python3-dev gcc build-base make git
-   - pipenv_to_requirements
-   - pip install -e . -r requirements.txt -r requirements-dev.txt
-
+   - python -V
+  #  - apk update
+  #  - apk add --no-cache --update python3-dev gcc build-base make git
+   - make setup_env
 lint:
   stage: test
   script:
-    - "flake8 alexapy"
-    - "pydocstyle alexapy"
-    - "pylint alexapy"
-    - "mypy --ignore-missing-imports alexapy"
+    - make lint
+    - make check_vulns
 
 bump_and_publish:
   stage: deploy
@@ -29,8 +37,9 @@ bump_and_publish:
     PYPI_PASSWORD: $PRODUCTION_PASSWORD
     GL_TOKEN: $GL_TOKEN
   script:
-    - "semantic-release publish"
-    - "semantic-release changelog"
+    - git config --global user.name "semantic-release (via GitLabCI)"
+    - git config --global user.email "semantic-release@GitLabCI"
+    - make bump_and_publish
   artifacts:
     paths:
       - dist
