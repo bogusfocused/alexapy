@@ -98,10 +98,15 @@ class WebsocketEchoClient():
         # the old websocket-client auto populates origin, which
         # aiohttp does not and is necessary for Amazon to accept a login
         self._headers['Origin'] = "https://alexa." + login.url
-        if 'ubid-abcde' in self._cookies:
-            url += str(self._cookies['ubid-abcde'])
+        ubid_id: Text = f"ubid-acb{login.url.split('.')[1]}"
+        if ubid_id in self._cookies:
+            url += str(self._cookies[ubid_id])
         elif 'ubid-main' in self._cookies:
             url += str(self._cookies['ubid-main'])
+        else:
+            _LOGGER.warning("Websocket is missing ubid-main and %s cookies;"
+                            " please report this if anything isn't working.",
+                            ubid_id)
         url += "-" + str(int(time.time())) + "000"
         # url = "ws://localhost:8080/ws"
         self.open_callback: \
