@@ -11,7 +11,7 @@ import json
 import logging
 
 import time
-from typing import Any, cast, Callable, Coroutine, Dict, Optional, Text, Union  # noqa pylint: disable=unused-import
+from typing import Any, cast, Callable, Coroutine, Dict, List, Optional, Text, Union  # noqa pylint: disable=unused-import
 import aiohttp
 
 from .alexalogin import AlexaLogin  # noqa pylint
@@ -98,10 +98,16 @@ class WebsocketEchoClient():
         # the old websocket-client auto populates origin, which
         # aiohttp does not and is necessary for Amazon to accept a login
         self._headers['Origin'] = "https://alexa." + login.url
-        if 'ubid-abcde' in self._cookies:
-            url += str(self._cookies['ubid-abcde'])
+        url_array: List[Text] = login.url.split('.')
+        ubid_id: Text = f"ubid-acb{url_array[len(url_array)-1]}"
+        if ubid_id in self._cookies:
+            url += str(self._cookies[ubid_id])
         elif 'ubid-main' in self._cookies:
             url += str(self._cookies['ubid-main'])
+        else:
+            _LOGGER.warning("Websocket is missing ubid-main and %s cookies;"
+                            " please report this if anything isn't working.",
+                            ubid_id)
         url += "-" + str(int(time.time())) + "000"
         # url = "ws://localhost:8080/ws"
         self.open_callback: \
