@@ -12,28 +12,13 @@ import logging
 from typing import (Any, Dict, List,  # noqa pylint: disable=unused-import
                     Optional, Text, Union)
 
-from yarl import URL
 from aiohttp import ClientResponse
+from yarl import URL
 
 from .alexalogin import AlexaLogin
+from .helpers import _catch_all_exceptions
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _catch_all_exceptions(func):
-    import functools
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as ex:  # pylint: disable=broad-except
-            template = ("An exception of type {0} occurred."
-                        " Arguments:\n{1!r}")
-            message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.error("An error occured accessing AlexaAPI: %s", (message))
-            return None
-    return wrapper
 
 
 class AlexaAPI():
