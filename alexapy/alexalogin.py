@@ -16,6 +16,7 @@ import aiohttp
 from bs4 import BeautifulSoup
 
 from .cookiejar import FixedCookieJar
+from .helpers import _catch_all_exceptions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -321,6 +322,7 @@ class AlexaLogin():
                 )
         return result
 
+    @_catch_all_exceptions
     async def login(self,
                     cookies: Optional[Dict[Text, Text]] = None,
                     data: Optional[Dict[Text, Optional[Text]]] = None) -> None:
