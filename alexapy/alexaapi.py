@@ -685,7 +685,7 @@ class AlexaAPI():
             )
         # _LOGGER.debug("Response: %s",
         #               response.json(content_type=None))
-        return await response.json(content_type=None)['notifications']
+        return (await response.json(content_type=None))['notifications']
 
     @staticmethod
     @_catch_all_exceptions
