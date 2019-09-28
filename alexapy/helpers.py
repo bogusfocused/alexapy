@@ -10,10 +10,11 @@ For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
 import logging
+from json import JSONDecodeError
 
 from aiohttp import ClientConnectionError
 
-from .errors import AlexapyConnectionError
+from .errors import AlexapyConnectionError, AlexapyLoginError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,6 +72,13 @@ def _catch_all_exceptions(func):
                           func.__name__,
                           message)
             raise AlexapyConnectionError
+        except JSONDecodeError as ex:
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.error("%s.%s: A login error occured: %s",
+                          func.__module__[func.__module__.find('.')+1:],
+                          func.__name__,
+                          message)
+            raise AlexapyLoginError
         except Exception as ex:  # pylint: disable=broad-except
             message = template.format(type(ex).__name__, ex.args)
             _LOGGER.error("%s.%s:An error occured accessing AlexaAPI: %s",

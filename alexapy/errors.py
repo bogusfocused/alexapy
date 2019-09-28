@@ -17,3 +17,7 @@ class AlexapyError(Exception):
 
 class AlexapyConnectionError(AlexapyError):
     """Define an error related to invalid requests."""
+
+
+class AlexapyLoginError(AlexapyError):
+    """Define an error related to no longer being logged in."""

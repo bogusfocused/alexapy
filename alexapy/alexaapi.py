@@ -17,6 +17,7 @@ from yarl import URL
 
 from .alexalogin import AlexaLogin
 from .helpers import _catch_all_exceptions
+from .errors import AlexapyLoginError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,6 +78,8 @@ class AlexaAPI():
                       response.status,
                       response.reason,
                       response.content_type)
+        if response.status == 401:
+            raise AlexapyLoginError(response.reason)
         return response
 
     @_catch_all_exceptions
@@ -137,6 +140,8 @@ class AlexaAPI():
                       response.status,
                       response.reason,
                       response.content_type)
+        if response.status == 401:
+            raise AlexapyLoginError(response.reason)
         return response
 
     async def send_sequence(self, sequence: Text, **kwargs) -> None:
@@ -686,6 +691,27 @@ class AlexaAPI():
         # _LOGGER.debug("Response: %s",
         #               response.json(content_type=None))
         return (await response.json(content_type=None))['notifications']
+
+    @staticmethod
+    @_catch_all_exceptions
+    async def set_notifications(login: AlexaLogin, data) -> Dict[Text, Any]:
+        """Update Alexa notification.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+
+        Returns json
+
+        """
+        response = await AlexaAPI._static_request(
+            'put',
+            login,
+            '/api/notifications',
+            data=data
+            )
+        # _LOGGER.debug("Response: %s",
+        #               response.json(content_type=None))
+        return await response.json(content_type=None)
 
     @staticmethod
     @_catch_all_exceptions

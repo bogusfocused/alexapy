@@ -11,10 +11,11 @@ from .__version__ import __version__
 from .alexaapi import AlexaAPI
 from .alexalogin import AlexaLogin
 from .alexawebsocket import WebsocketEchoClient
-from .errors import AlexapyConnectionError
+from .errors import AlexapyConnectionError, AlexapyLoginError
 from .helpers import hide_email, hide_serial
 
-__all__ = ['AlexaLogin', 'AlexaAPI', 'AlexapyConnectionError',
+__all__ = ['AlexaLogin', 'AlexaAPI',
+           'AlexapyConnectionError', 'AlexapyLoginError',
            'WebsocketEchoClient',
            'hide_email', 'hide_serial',
            '__version__']
