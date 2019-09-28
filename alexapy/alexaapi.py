@@ -694,6 +694,27 @@ class AlexaAPI():
 
     @staticmethod
     @_catch_all_exceptions
+    async def set_notifications(login: AlexaLogin, data) -> Dict[Text, Any]:
+        """Update Alexa notification.
+
+        Args:
+        login (AlexaLogin): Successfully logged in AlexaLogin
+
+        Returns json
+
+        """
+        response = await AlexaAPI._static_request(
+            'put',
+            login,
+            '/api/notifications',
+            data=data
+            )
+        # _LOGGER.debug("Response: %s",
+        #               response.json(content_type=None))
+        return await response.json(content_type=None)
+
+    @staticmethod
+    @_catch_all_exceptions
     async def get_dnd_state(login: AlexaLogin) -> Dict[Text, Any]:
         """Get Alexa DND states.
 
