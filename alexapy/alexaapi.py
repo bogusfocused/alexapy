@@ -16,7 +16,7 @@ from aiohttp import ClientResponse
 from yarl import URL
 
 from .alexalogin import AlexaLogin
-from .helpers import _catch_all_exceptions
+from .helpers import _catch_all_exceptions, hide_email
 from .errors import AlexapyLoginError
 
 _LOGGER = logging.getLogger(__name__)
@@ -735,6 +735,7 @@ class AlexaAPI():
     @_catch_all_exceptions
     async def clear_history(login: AlexaLogin, items: int = 50) -> bool:
         """Clear entries in history."""
+        email = login.email
         response = await AlexaAPI._static_request(
             'get',
             login,
@@ -744,13 +745,35 @@ class AlexaAPI():
                    }
             )
         import urllib.parse
-        for activity in response.json(content_type=None)['activities']:
+        completed = True
+        response_json = (await response.json(content_type=None))['activities']
+        if not response_json:
+            _LOGGER.debug("%s:No history to delete.",
+                          hide_email(email))
+            return True
+        _LOGGER.debug("%s:Attempting to delete %s items from history",
+                      hide_email(email),
+                      len(response_json),
+                      )
+        for activity in response_json:
             response = await AlexaAPI._static_request(
                 'delete',
                 login,
                 '/api/activities/{}'.format(
                     urllib.parse.quote_plus(activity['id'])))
-            _LOGGER.debug("Attempting to delete %s",
-                          activity['id'],
-                          )
-        return True
+            if response.status == 404:
+                _LOGGER.warning(
+                    ("%s:Unable to delete %s: %s: \n"
+                     "There is no voice recording to delete. "
+                     "Please manually delete the entry in the Alexa app."),
+                    hide_email(email),
+                    activity['id'],
+                    response.reason
+                    )
+                completed = False
+            elif response.status == 200:
+                _LOGGER.debug("%s:Succesfully deleted %s",
+                              hide_email(email),
+                              activity['id'],
+                              )
+        return completed
