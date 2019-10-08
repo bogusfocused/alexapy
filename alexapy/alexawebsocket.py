@@ -7,11 +7,13 @@ Python Package for controlling Alexa devices (echo dot, etc) programmatically.
 For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
+import asyncio
 import json
 import logging
-
 import time
-from typing import Any, cast, Callable, Coroutine, Dict, List, Optional, Text, Union  # noqa pylint: disable=unused-import
+from typing import (Any, Callable,  # noqa pylint: disable=unused-import
+                    Coroutine, Dict, List, Optional, Text, Union, cast)
+
 import aiohttp
 
 from .alexalogin import AlexaLogin  # noqa pylint
@@ -120,18 +122,21 @@ class WebsocketEchoClient():
             Callable[[Text], Coroutine[Any, Any, None]] = error_callback
         self._wsurl: Text = url
         self.websocket: aiohttp.ClientWebSocketResponse
+        self._loop: asyncio.AbstractEventLoop
 
     async def async_run(self) -> None:
         """Start Async WebSocket Listener."""
-        import asyncio
         _LOGGER.debug("Connecting to %s with %s", self._wsurl, self._headers)
         self.websocket = \
-            await self._session.ws_connect(self._wsurl,
-                                           headers=self._headers,
-                                           heartbeat=180,
-                                           ssl=self._ssl)
+            await self._session.ws_connect(
+                self._wsurl,
+                headers=self._headers,
+                heartbeat=180,
+                ssl=self._ssl)
         loop = asyncio.get_event_loop()
-        loop.create_task(self.process_messages())
+        self._loop = loop
+        task = loop.create_task(self.process_messages())
+        task.add_done_callback(self.on_close)
         await self.async_on_open()
 
     async def process_messages(self) -> None:
@@ -142,7 +147,7 @@ class WebsocketEchoClient():
             if msg.type == aiohttp.WSMsgType.BINARY:
                 await self.on_message(cast(bytes, msg.data))
             elif msg.type == aiohttp.WSMsgType.ERROR:
-                await self.on_error("WSMsgType error")
+                self.on_error("WSMsgType error")
                 break
 
     async def on_message(self, message: bytes) -> None:
@@ -224,20 +229,23 @@ class WebsocketEchoClient():
                               ['payload']))
             await self.msg_callback(message_obj)
 
-    async def on_error(self, error: Text) -> None:
+    def on_error(self, error: Text = "Unspecified") -> None:
         """Handle WebSocket Error."""
-        _LOGGER.error("WebSocket Error %s", error)
-        self.websocket.close()
-        await self.error_callback(error)
+        _LOGGER.error("WebSocket Error: %s", error)
+        asyncio.run_coroutine_threadsafe(self.error_callback(error),
+                                         self._loop)
 
-    async def on_close(self) -> None:
+    def on_close(self, future="") -> None:
         """Handle WebSocket Close."""
-        _LOGGER.debug("WebSocket Connection Closed.")
-        await self.close_callback()
+        exception_ = self.websocket.exception()
+        if exception_:
+            self.on_error(str(type(exception_)))
+        _LOGGER.debug("WebSocket Connection Closed. %s", future)
+        asyncio.run_coroutine_threadsafe(self.close_callback(),
+                                         self._loop)
 
     async def async_on_open(self) -> None:
         """Handle Async WebSocket Open."""
-        import asyncio
         _LOGGER.debug("Initating Async Handshake.")
         await self.websocket.send_bytes(bytes("0x99d4f71a 0x0000001d A:HTUNE",
                                               'utf-8'))
@@ -247,7 +255,8 @@ class WebsocketEchoClient():
         await self.websocket.send_bytes(self._encode_gw_handshake())
         await asyncio.sleep(0.1)
         await self.websocket.send_bytes(self._encode_gw_register())
-        await self.open_callback()
+        if not self.websocket.closed:
+            await self.open_callback()
 
     def _encode_ws_handshake(self) -> bytes:
         # pylint: disable=no-self-use
