@@ -599,7 +599,7 @@ class AlexaLogin():
             if formsite and formsite == 'verify':
                 import re
                 search_results = re.search(r'(.+)/(.*)',
-                                           site)
+                                           str(site))
                 assert search_results is not None
                 site = search_results.groups()[0] + "/verify"
                 _LOGGER.debug("Found post url to verify; converting to %s",
