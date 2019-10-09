@@ -554,6 +554,7 @@ class AlexaLogin():
             self._data = self.get_inputs(soup, {'action': 'verify'})
         elif missingcookies_tag is not None:
             _LOGGER.debug("Error page detected:")
+            href = ""
             links = missingcookies_tag.findAll('a', href=True)
             for link in links:
                 href = link['href']
