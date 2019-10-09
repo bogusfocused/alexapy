@@ -554,6 +554,7 @@ class AlexaLogin():
             self._data = self.get_inputs(soup, {'action': 'verify'})
         elif missingcookies_tag is not None:
             _LOGGER.debug("Error page detected:")
+            href = ""
             links = missingcookies_tag.findAll('a', href=True)
             for link in links:
                 href = link['href']
@@ -599,7 +600,7 @@ class AlexaLogin():
             if formsite and formsite == 'verify':
                 import re
                 search_results = re.search(r'(.+)/(.*)',
-                                           site)
+                                           str(site))
                 assert search_results is not None
                 site = search_results.groups()[0] + "/verify"
                 _LOGGER.debug("Found post url to verify; converting to %s",
