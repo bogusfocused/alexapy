@@ -290,6 +290,16 @@ class AlexaAPI():
                                  sanitizedSearchPhrase=search_phrase,
                                  musicProviderId=provider_id)
 
+    async def play_sound(self,
+                         sound_string_id: Text,
+                         customer_id: Text = None
+                         ) -> None:
+        """Play Alexa sound."""
+        await self.send_sequence("Alexa.Sound",
+                                 customerId=customer_id,
+                                 soundStringId=sound_string_id,
+                                 skillId='amzn1.ask.1p.sound')
+
     async def send_tts(self, message: Text, customer_id: Text = None
                        ) -> None:
         """Send message for TTS at speaker.
