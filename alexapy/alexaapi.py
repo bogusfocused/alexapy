@@ -7,6 +7,7 @@ Python Package for controlling Alexa devices (echo dot, etc) programmatically.
 For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
+import asyncio
 import json
 import logging
 from typing import (Any, Dict, List,  # noqa pylint: disable=unused-import
@@ -41,6 +42,7 @@ class AlexaAPI():
         self._session = login.session
         self._url: Text = 'https://alexa.' + login.url
         self._login._headers['Referer'] = "{}/spa/index.html".format(self._url)
+        self._sequence_queue: List[Dict[Any, Any]] = []
         try:
             assert self._login._cookies is not None
             csrf = self._login._cookies['csrf']
@@ -144,7 +146,12 @@ class AlexaAPI():
             raise AlexapyLoginError(response.reason)
         return response
 
-    async def send_sequence(self, sequence: Text, **kwargs) -> None:
+    async def send_sequence(
+            self,
+            sequence: Text,
+            queue_delay: float = 0.5,
+            **kwargs
+    ) -> None:
         """Send sequence command.
 
         This allows some programatic control of Echo device using the behaviors
@@ -156,6 +163,9 @@ class AlexaAPI():
                              specified this defaults to the device owner. Used
                              with households where others may have their own
                              music.
+        queue_delay (float): The number of seconds to potentially wait for
+                            other send_sequence commands to queue together.
+                            Must be positive.
         **kwargs : Each named variable must match a recognized Amazon variable
                    within the operationPayload. Please see examples in
                    play_music, send_announcement, and send_tts.
@@ -187,15 +197,36 @@ class AlexaAPI():
             }
         if kwargs is not None:
             operation_payload.update(kwargs)
-        sequence_json = {
-            "@type": "com.amazon.alexa.behaviors.model.Sequence",
-            "startNode": {
-                "@type":
-                "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
-                "type": sequence,
-                "operationPayload": operation_payload
-                }
+        node_data = {
+            "@type":
+            "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
+            "type": sequence,
+            "operationPayload": operation_payload
         }
+        sequence_json: Dict[Any, Any] = {
+            "@type": "com.amazon.alexa.behaviors.model.Sequence",
+            "startNode": node_data
+        }
+        if queue_delay > 0:
+            self._sequence_queue.append(node_data)
+            items = len(self._sequence_queue)
+            await asyncio.sleep(queue_delay)
+            sequence_json["startNode"] = {
+                "@type": "com.amazon.alexa.behaviors.model.SerialNode",
+                "nodesToExecute": []
+            }
+            if items == len(self._sequence_queue):
+                for node in self._sequence_queue:
+                    sequence_json["startNode"]["nodesToExecute"].append(node)
+                self._sequence_queue = []
+                _LOGGER.debug(
+                    "Creating sequence for %s items",
+                    items)
+            else:
+                _LOGGER.debug(
+                    "Queue size changed while waiting %s seconds",
+                    queue_delay)
+                return
         data = {
             "behaviorId": "PREVIEW",
             "sequenceJson": json.dumps(sequence_json),
