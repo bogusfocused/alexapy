@@ -146,10 +146,63 @@ class AlexaAPI():
             raise AlexapyLoginError(response.reason)
         return response
 
+    async def run_behavior(
+            self,
+            node_data,
+            queue_delay: float = 0.5,
+    ) -> None:
+        """Queue node_data for running a behavior in sequence.
+
+        Amazon sequences and routines are based on node_data.
+
+        Args:
+            node_data (dict, list of dicts): The node_data to run.
+            queue_delay (float, optional): The number of seconds to wait
+                                          for commands to queue together.
+                                          Defaults to 0.5.
+                                          Must be positive.
+
+        """
+        sequence_json: Dict[Any, Any] = {
+            "@type": "com.amazon.alexa.behaviors.model.Sequence",
+            "startNode": node_data
+        }
+        if queue_delay > 0:
+            if isinstance(node_data, list):
+                self._sequence_queue.extend(node_data)
+            else:
+                self._sequence_queue.append(node_data)
+            items = len(self._sequence_queue)
+            await asyncio.sleep(queue_delay)
+            sequence_json["startNode"] = {
+                "@type": "com.amazon.alexa.behaviors.model.SerialNode",
+                "nodesToExecute": []
+            }
+            if items == len(self._sequence_queue):
+                sequence_json["startNode"]["nodesToExecute"].extend(
+                    self._sequence_queue)
+                self._sequence_queue = []
+                _LOGGER.debug(
+                    "Creating sequence for %s items",
+                    items)
+            else:
+                _LOGGER.debug(
+                    "Queue size changed while waiting %s seconds",
+                    queue_delay)
+                return
+        data = {
+            "behaviorId": "PREVIEW",
+            "sequenceJson": json.dumps(sequence_json),
+            "status": "ENABLED"
+        }
+        _LOGGER.debug("Running behavior with data: %s",
+                      json.dumps(data))
+        await self._post_request('/api/behaviors/preview',
+                                 data=data)
+
     async def send_sequence(
             self,
             sequence: Text,
-            queue_delay: float = 0.5,
             **kwargs
     ) -> None:
         """Send sequence command.
@@ -163,9 +216,6 @@ class AlexaAPI():
                              specified this defaults to the device owner. Used
                              with households where others may have their own
                              music.
-        queue_delay (float): The number of seconds to potentially wait for
-                            other send_sequence commands to queue together.
-                            Must be positive.
         **kwargs : Each named variable must match a recognized Amazon variable
                    within the operationPayload. Please see examples in
                    play_music, send_announcement, and send_tts.
@@ -203,40 +253,7 @@ class AlexaAPI():
             "type": sequence,
             "operationPayload": operation_payload
         }
-        sequence_json: Dict[Any, Any] = {
-            "@type": "com.amazon.alexa.behaviors.model.Sequence",
-            "startNode": node_data
-        }
-        if queue_delay > 0:
-            self._sequence_queue.append(node_data)
-            items = len(self._sequence_queue)
-            await asyncio.sleep(queue_delay)
-            sequence_json["startNode"] = {
-                "@type": "com.amazon.alexa.behaviors.model.SerialNode",
-                "nodesToExecute": []
-            }
-            if items == len(self._sequence_queue):
-                for node in self._sequence_queue:
-                    sequence_json["startNode"]["nodesToExecute"].append(node)
-                self._sequence_queue = []
-                _LOGGER.debug(
-                    "Creating sequence for %s items",
-                    items)
-            else:
-                _LOGGER.debug(
-                    "Queue size changed while waiting %s seconds",
-                    queue_delay)
-                return
-        data = {
-            "behaviorId": "PREVIEW",
-            "sequenceJson": json.dumps(sequence_json),
-            "status": "ENABLED"
-        }
-        _LOGGER.debug("Running sequence: %s data: %s",
-                      sequence,
-                      json.dumps(data))
-        await self._post_request('/api/behaviors/preview',
-                                 data=data)
+        await self.run_behavior(node_data)
 
     async def run_routine(self, utterance: Text) -> None:
         """Run Alexa automation routine.
@@ -244,7 +261,7 @@ class AlexaAPI():
         This allows running of defined Alexa automation routines.
 
         Args:
-        utterance (string): The Alexa utterance to run the routine.
+            utterance (string): The Alexa utterance to run the routine.
 
         """
         def _populate_device_info(node):
@@ -295,19 +312,11 @@ class AlexaAPI():
                     _populate_device_info(node)
                 new_nodes.append(node)
             sequence['startNode']['nodesToExecute'] = new_nodes
+            await self.run_behavior(sequence['startNode']['nodesToExecute'])
         else:
             # Single entry with no nodesToExecute
             _populate_device_info(sequence['startNode'])
-        data = {
-            "behaviorId": automation_id,
-            "sequenceJson": json.dumps(sequence),
-            "status": "ENABLED"
-        }
-        _LOGGER.debug("Running routine: %s with data: %s",
-                      utterance,
-                      json.dumps(data))
-        await self._post_request('/api/behaviors/preview',
-                                 data=data)
+            await self.run_behavior(sequence['startNode'])
 
     async def play_music(self,
                          provider_id: Text,
