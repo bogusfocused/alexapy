@@ -290,6 +290,16 @@ class AlexaAPI():
                                  sanitizedSearchPhrase=search_phrase,
                                  musicProviderId=provider_id)
 
+    async def play_sound(self,
+                         sound_string_id: Text,
+                         customer_id: Text = None
+                         ) -> None:
+        """Play Alexa sound."""
+        await self.send_sequence("Alexa.Sound",
+                                 customerId=customer_id,
+                                 soundStringId=sound_string_id,
+                                 skillId='amzn1.ask.1p.sound')
+
     async def send_tts(self, message: Text, customer_id: Text = None
                        ) -> None:
         """Send message for TTS at speaker.
@@ -308,7 +318,8 @@ class AlexaAPI():
         """
         await self.send_sequence("Alexa.Speak",
                                  customerId=customer_id,
-                                 textToSpeak=message)
+                                 textToSpeak=message,
+                                 skillId='amzn1.ask.1p.saysomething')
 
     async def send_announcement(self, message: Text,
                                 method: Text = "all",
@@ -366,7 +377,8 @@ class AlexaAPI():
                                  customerId=customer_id,
                                  expireAfter="PT5S",
                                  content=content,
-                                 target=target)
+                                 target=target,
+                                 skillId='amzn1.ask.1p.routines.messaging')
 
     async def send_mobilepush(self, message: Text,
                               title: Text = "AlexaAPI Message",
@@ -390,7 +402,8 @@ class AlexaAPI():
                                      self._device._device_owner_customer_id),
                                  notificationMessage=message,
                                  alexaUrl="#v2/behaviors",
-                                 title=title)
+                                 title=title,
+                                 skillId='amzn1.ask.1p.routines.messaging')
 
     async def set_media(self, data: Dict[Text, Any]) -> None:
         """Select the media player."""
