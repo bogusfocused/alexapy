@@ -143,7 +143,7 @@ class WebsocketEchoClient():
         """Start Async WebSocket Listener."""
         _LOGGER.debug("Starting message parsing loop.")
         async for msg in self.websocket:
-            _LOGGER.debug("msg: %s", msg)
+            # _LOGGER.debug("msg: %s", msg, extra=)
             if msg.type == aiohttp.WSMsgType.BINARY:
                 await self.on_message(cast(bytes, msg.data))
             elif msg.type == aiohttp.WSMsgType.ERROR:
@@ -153,9 +153,8 @@ class WebsocketEchoClient():
     async def on_message(self, message: bytes) -> None:
         # pylint: disable=too-many-statements
         """Handle New Message."""
-        _LOGGER.debug("Received WebSocket MSG.")
         msg: Text = message.decode('utf-8')
-        _LOGGER.debug("Received %s", message)
+        _LOGGER.debug("Received WebSocket: %s", msg)
         message_obj: Message = Message()
         message_obj.service = msg[-4:]
         idx = 0  # type: int

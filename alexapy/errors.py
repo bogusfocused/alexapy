@@ -21,3 +21,7 @@ class AlexapyConnectionError(AlexapyError):
 
 class AlexapyLoginError(AlexapyError):
     """Define an error related to no longer being logged in."""
+
+
+class AlexapyTooManyRequestsError(AlexapyError):
+    """Define an error related to too many requests."""

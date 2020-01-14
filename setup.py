@@ -36,7 +36,8 @@ REQUIRED = [
     'aiofiles',
     'yarl',
     'requests',
-    'certifi'
+    'certifi',
+    'backoff'
 ]
 
 # What packages are optional?
