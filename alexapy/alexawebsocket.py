@@ -223,8 +223,8 @@ class WebsocketEchoClient():
                         message_obj.content.payload = payload
                         message_obj.json_payload = json.loads(str(payload))
                         (message_obj.json_payload
-                         ['payload']) = json.loads(  # type: ignore
-                             (message_obj.json_payload
+                         ['payload']) = json.loads(
+                             (message_obj.json_payload  # type: ignore
                               ['payload']))
             await self.msg_callback(message_obj)
 
