@@ -34,6 +34,8 @@ class AlexaAPI():
     """
 
     devices: Dict[Text, Any] = {}
+    _sequence_queue: List[Dict[Any, Any]] = []
+    _sequence_lock = asyncio.Lock()
 
     def __init__(self, device, login: AlexaLogin):
         """Initialize Alexa device."""
@@ -42,7 +44,6 @@ class AlexaAPI():
         self._session = login.session
         self._url: Text = 'https://alexa.' + login.url
         self._login._headers['Referer'] = "{}/spa/index.html".format(self._url)
-        self._sequence_queue: List[Dict[Any, Any]] = []
         try:
             assert self._login._cookies is not None
             csrf = self._login._cookies['csrf']
@@ -149,7 +150,7 @@ class AlexaAPI():
     async def run_behavior(
             self,
             node_data,
-            queue_delay: float = 0.5,
+            queue_delay: float = 1.5,
     ) -> None:
         """Queue node_data for running a behavior in sequence.
 
@@ -168,20 +169,20 @@ class AlexaAPI():
             "startNode": node_data
         }
         if queue_delay > 0:
-            if isinstance(node_data, list):
-                self._sequence_queue.extend(node_data)
-            else:
-                self._sequence_queue.append(node_data)
-            items = len(self._sequence_queue)
-            await asyncio.sleep(queue_delay)
             sequence_json["startNode"] = {
                 "@type": "com.amazon.alexa.behaviors.model.SerialNode",
                 "nodesToExecute": []
             }
-            if items == len(self._sequence_queue):
+            if isinstance(node_data, list):
+                AlexaAPI._sequence_queue.extend(node_data)
+            else:
+                AlexaAPI._sequence_queue.append(node_data)
+            items = len(AlexaAPI._sequence_queue)
+            await asyncio.sleep(queue_delay)
+            if items == len(AlexaAPI._sequence_queue):
                 sequence_json["startNode"]["nodesToExecute"].extend(
-                    self._sequence_queue)
-                self._sequence_queue = []
+                    AlexaAPI._sequence_queue)
+                AlexaAPI._sequence_queue = []
                 _LOGGER.debug(
                     "Creating sequence for %s items",
                     items)
