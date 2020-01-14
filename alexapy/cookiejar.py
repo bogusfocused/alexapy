@@ -37,7 +37,7 @@ class FixedCookieJar(CookieJar):
 
         for name, cookie in cookies:
             if not isinstance(cookie, Morsel):
-                tmp = SimpleCookie()
+                tmp = SimpleCookie()  # type: SimpleCookie[str]
                 tmp[name] = cookie  # type: ignore
                 cookie = tmp[name]
 
@@ -78,7 +78,13 @@ class FixedCookieJar(CookieJar):
             if max_age:
                 try:
                     delta_seconds = int(max_age)
-                    self._expire_cookie(self._loop.time() + delta_seconds,
+                    try:
+                        max_age_expiration = (
+                            datetime.datetime.now(datetime.timezone.utc) +
+                            datetime.timedelta(seconds=delta_seconds))
+                    except OverflowError:
+                        max_age_expiration = self.MAX_TIME
+                    self._expire_cookie(max_age_expiration,
                                         domain, name)
                 except ValueError:
                     cookie["max-age"] = ""
@@ -88,9 +94,7 @@ class FixedCookieJar(CookieJar):
                 if expires:
                     expire_time = self._parse_date(expires)
                     if expire_time:
-                        diff = (expire_time.timestamp() -
-                                datetime.datetime.now().timestamp())
-                        self._expire_cookie(diff,
+                        self._expire_cookie(expire_time,
                                             domain, name)
                     else:
                         cookie["expires"] = ""
