@@ -40,7 +40,7 @@ class AlexaLogin():
                  password: Text,
                  outputpath: Callable[[Text], Text],
                  debug: bool = False) -> None:
-        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-arguments,import-outside-toplevel
         """Set up initial connection and log in."""
         import ssl
         import certifi
@@ -95,6 +95,7 @@ class AlexaLogin():
         return result
 
     async def login_with_cookie(self) -> None:
+        # pylint: disable=import-outside-toplevel
         """Attempt to login after loading cookie."""
         import pickle
         import aiofiles
@@ -177,6 +178,7 @@ class AlexaLogin():
             self._session._connector = None
 
     async def reset(self) -> None:
+        # pylint: disable=import-outside-toplevel
         """Remove data related to existing login."""
         await self.close()
         self._session = None
@@ -223,6 +225,7 @@ class AlexaLogin():
     async def test_loggedin(self,
                             cookies: Union[Dict[str, str], None] = None
                             ) -> bool:
+        # pylint: disable=import-outside-toplevel
         """Function that will test the connection is logged in.
 
         Tests:
@@ -328,6 +331,7 @@ class AlexaLogin():
                     data: Optional[Dict[Text, Optional[Text]]] = None) -> None:
         # pylint: disable=too-many-branches,too-many-locals,
         # pylint: disable=too-many-statements
+        # pylint: disable=import-outside-toplevel
         """Login to Amazon."""
         data = data or {}
         if (cookies and await self.test_loggedin(cookies)):
@@ -384,7 +388,7 @@ class AlexaLogin():
         site = await self._process_page(html, site)
         missing_params = self._populate_data(site, data)
         if self._debug:
-            from json import dumps
+            from json import dumps  # pylint: disable=import-outside-toplevel
             _LOGGER.debug("Missing params: %s", missing_params)
             _LOGGER.debug("Session Cookies:\n%s",
                           self._print_session_cookies())
@@ -432,6 +436,7 @@ class AlexaLogin():
     async def _process_page(self, html: str, site: Text) -> Text:
         # pylint: disable=too-many-branches,too-many-locals,
         # pylint: disable=too-many-statements
+        # pylint: disable=import-outside-toplevel
         """Process html to set login.status and find form post url."""
         def find_links() -> None:
             links = {}
