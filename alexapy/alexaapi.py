@@ -8,6 +8,7 @@ For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
 import asyncio
+import backoff
 import json
 import logging
 from typing import (Any, Dict, List,  # noqa pylint: disable=unused-import
@@ -17,8 +18,8 @@ from aiohttp import ClientResponse
 from yarl import URL
 
 from .alexalogin import AlexaLogin
+from .errors import AlexapyLoginError, AlexapyTooManyRequestsError
 from .helpers import _catch_all_exceptions, hide_email
-from .errors import AlexapyLoginError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +56,11 @@ class AlexaAPI():
                 ex)
 
     @_catch_all_exceptions
+    @backoff.on_exception(backoff.expo,
+                          AlexapyTooManyRequestsError,
+                          max_time=60,
+                          max_tries=5,
+                          logger=__name__)
     async def _request(self,
                        method: Text,
                        uri: Text,
@@ -82,6 +88,8 @@ class AlexaAPI():
                       response.content_type)
         if response.status == 401:
             raise AlexapyLoginError(response.reason)
+        if response.status == 429:
+            raise AlexapyTooManyRequestsError(response.reason)
         return response
 
     @_catch_all_exceptions
@@ -114,6 +122,11 @@ class AlexaAPI():
 
     @staticmethod
     @_catch_all_exceptions
+    @backoff.on_exception(backoff.expo,
+                          AlexapyTooManyRequestsError,
+                          max_time=60,
+                          max_tries=5,
+                          logger=__name__)
     async def _static_request(method: Text,
                               login: AlexaLogin,
                               uri: Text,
@@ -143,6 +156,8 @@ class AlexaAPI():
                       response.content_type)
         if response.status == 401:
             raise AlexapyLoginError(response.reason)
+        if response.status == 429:
+            raise AlexapyTooManyRequestsError(response.reason)
         return response
 
     async def run_behavior(
