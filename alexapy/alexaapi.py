@@ -8,7 +8,6 @@ For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
 import asyncio
-import backoff
 import json
 import logging
 from typing import (Any, Dict, List,  # noqa pylint: disable=unused-import
@@ -16,6 +15,8 @@ from typing import (Any, Dict, List,  # noqa pylint: disable=unused-import
 
 from aiohttp import ClientResponse
 from yarl import URL
+
+import backoff
 
 from .alexalogin import AlexaLogin
 from .errors import AlexapyLoginError, AlexapyTooManyRequestsError
