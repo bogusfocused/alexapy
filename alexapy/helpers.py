@@ -57,6 +57,7 @@ def hide_serial(item):
 
 
 def _catch_all_exceptions(func):
+    # pylint: disable=import-outside-toplevel
     import functools
 
     @functools.wraps(func)

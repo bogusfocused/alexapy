@@ -16,9 +16,11 @@ from typing import (Any, Dict, List,  # noqa pylint: disable=unused-import
 from aiohttp import ClientResponse
 from yarl import URL
 
+import backoff
+
 from .alexalogin import AlexaLogin
+from .errors import AlexapyLoginError, AlexapyTooManyRequestsError
 from .helpers import _catch_all_exceptions, hide_email
-from .errors import AlexapyLoginError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +36,8 @@ class AlexaAPI():
     """
 
     devices: Dict[Text, Any] = {}
+    _sequence_queue: List[Dict[Any, Any]] = []
+    _sequence_lock = asyncio.Lock()
 
     def __init__(self, device, login: AlexaLogin):
         """Initialize Alexa device."""
@@ -42,7 +46,6 @@ class AlexaAPI():
         self._session = login.session
         self._url: Text = 'https://alexa.' + login.url
         self._login._headers['Referer'] = "{}/spa/index.html".format(self._url)
-        self._sequence_queue: List[Dict[Any, Any]] = []
         try:
             assert self._login._cookies is not None
             csrf = self._login._cookies['csrf']
@@ -54,6 +57,11 @@ class AlexaAPI():
                 ex)
 
     @_catch_all_exceptions
+    @backoff.on_exception(backoff.expo,
+                          AlexapyTooManyRequestsError,
+                          max_time=60,
+                          max_tries=5,
+                          logger=__name__)
     async def _request(self,
                        method: Text,
                        uri: Text,
@@ -73,15 +81,16 @@ class AlexaAPI():
             cookies=self._login._cookies,
             headers=self._login._headers,
             ssl=self._login._ssl)
-        _LOGGER.debug("%s: %s %s returned %s:%s:%s",
+        _LOGGER.debug("%s: %s returned %s:%s:%s",
                       response.request_info.method,
                       response.request_info.url,
-                      response.request_info.headers,
                       response.status,
                       response.reason,
                       response.content_type)
         if response.status == 401:
             raise AlexapyLoginError(response.reason)
+        if response.status == 429:
+            raise AlexapyTooManyRequestsError(response.reason)
         return response
 
     @_catch_all_exceptions
@@ -114,6 +123,11 @@ class AlexaAPI():
 
     @staticmethod
     @_catch_all_exceptions
+    @backoff.on_exception(backoff.expo,
+                          AlexapyTooManyRequestsError,
+                          max_time=60,
+                          max_tries=5,
+                          logger=__name__)
     async def _static_request(method: Text,
                               login: AlexaLogin,
                               uri: Text,
@@ -135,21 +149,22 @@ class AlexaAPI():
             headers=login._headers,
             ssl=login._ssl,
             )
-        _LOGGER.debug("static %s: %s %s returned %s:%s:%s",
+        _LOGGER.debug("static %s: %s returned %s:%s:%s",
                       response.request_info.method,
                       response.request_info.url,
-                      response.request_info.headers,
                       response.status,
                       response.reason,
                       response.content_type)
         if response.status == 401:
             raise AlexapyLoginError(response.reason)
+        if response.status == 429:
+            raise AlexapyTooManyRequestsError(response.reason)
         return response
 
     async def run_behavior(
             self,
             node_data,
-            queue_delay: float = 0.5,
+            queue_delay: float = 1.5,
     ) -> None:
         """Queue node_data for running a behavior in sequence.
 
@@ -168,20 +183,20 @@ class AlexaAPI():
             "startNode": node_data
         }
         if queue_delay > 0:
-            if isinstance(node_data, list):
-                self._sequence_queue.extend(node_data)
-            else:
-                self._sequence_queue.append(node_data)
-            items = len(self._sequence_queue)
-            await asyncio.sleep(queue_delay)
             sequence_json["startNode"] = {
                 "@type": "com.amazon.alexa.behaviors.model.SerialNode",
                 "nodesToExecute": []
             }
-            if items == len(self._sequence_queue):
+            if isinstance(node_data, list):
+                AlexaAPI._sequence_queue.extend(node_data)
+            else:
+                AlexaAPI._sequence_queue.append(node_data)
+            items = len(AlexaAPI._sequence_queue)
+            await asyncio.sleep(queue_delay)
+            if items == len(AlexaAPI._sequence_queue):
                 sequence_json["startNode"]["nodesToExecute"].extend(
-                    self._sequence_queue)
-                self._sequence_queue = []
+                    AlexaAPI._sequence_queue)
+                AlexaAPI._sequence_queue = []
                 _LOGGER.debug(
                     "Creating sequence for %s items",
                     items)
@@ -797,7 +812,7 @@ class AlexaAPI():
                    "offset": -1
                    }
             )
-        import urllib.parse
+        import urllib.parse  # pylint: disable=import-outside-toplevel
         completed = True
         response_json = (await response.json(content_type=None))['activities']
         if not response_json:
