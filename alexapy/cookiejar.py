@@ -9,18 +9,76 @@ For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
 import datetime
+from collections import defaultdict
 from http.cookies import Morsel, SimpleCookie  # noqa
-from typing import Mapping  # noqa
-
+from typing import (  # noqa
+    DefaultDict,
+    Dict,
+    Mapping,
+    Set,
+    Tuple,
+)
 from aiohttp.cookiejar import CookieJar
-from aiohttp.helpers import is_ip_address
+from aiohttp.helpers import get_running_loop, is_ip_address
 from aiohttp.typedefs import LooseCookies
 from yarl import URL
+
+
+def next_whole_second() -> datetime.datetime:
+    """Return current time rounded up to the next whole second."""
+    return (
+        datetime.datetime.now(
+            datetime.timezone.utc).replace(microsecond=0) +
+        datetime.timedelta(seconds=0)
+    )
 
 
 class FixedCookieJar(CookieJar):
     # pylint: disable=too-many-branches
     """Fixed version of CookieJar that handles expired cookies."""
+
+    MAX_TIME = datetime.datetime.max.replace(
+        tzinfo=datetime.timezone.utc)
+
+    def __init__(self, *, unsafe: bool = False) -> None: # noqa
+        # pylint: disable=super-init-not-called
+        self._loop = get_running_loop()
+        self._cookies = defaultdict(SimpleCookie) #type: DefaultDict[str, SimpleCookie[str]] # noqa
+        self._host_only_cookies = set()  # type: Set[Tuple[str, str]]
+        self._unsafe = unsafe
+        self._next_expiration = next_whole_second()
+        self._expirations = {}  # type: Dict[Tuple[str, str], datetime.datetime]  # noqa: E501
+
+    def _do_expiration(self) -> None:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if self._next_expiration > now:
+            return
+        if not self._expirations:
+            return
+        next_expiration = self.MAX_TIME
+        to_del = []
+        cookies = self._cookies
+        expirations = self._expirations
+        for (domain, name), when in expirations.items():
+            if when <= now:
+                cookies[domain].pop(name, None)
+                to_del.append((domain, name))
+                self._host_only_cookies.discard((domain, name))
+            else:
+                next_expiration = min(next_expiration, when)
+        for key in to_del:
+            del expirations[key]
+
+        try:
+            self._next_expiration = (next_expiration.replace(microsecond=0) +
+                                     datetime.timedelta(seconds=1))
+        except OverflowError:
+            self._next_expiration = self.MAX_TIME
+
+    def _expire_cookie(self, when: datetime.datetime, domain: str, name: str
+                       ) -> None:
+        self._next_expiration = min(self._next_expiration, when)
+        self._expirations[(domain, name)] = when
 
     def update_cookies(self,
                        cookies: LooseCookies,
