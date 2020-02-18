@@ -187,6 +187,23 @@ class AlexaAPI():
                 "@type": "com.amazon.alexa.behaviors.model.SerialNode",
                 "nodesToExecute": []
             }
+            if AlexaAPI._sequence_queue:
+                last_node = AlexaAPI._sequence_queue[-1]
+                if ((last_node.get("operationPayload", {}).get(
+                        "deviceSerialNumber")
+                     and node_data.get("operationPayload", {}).get(
+                         "deviceSerialNumber")
+                     ) and
+                        last_node.get(
+                            "operationPayload",
+                            {}
+                            ).get("deviceSerialNumber") != node_data.get(
+                                "operationPayload",
+                                {}).get("deviceSerialNumber")):
+                    _LOGGER.debug("Creating Parallel node")
+                    sequence_json["startNode"][
+                        "@type"
+                        ] = "com.amazon.alexa.behaviors.model.ParallelNode"
             if isinstance(node_data, list):
                 AlexaAPI._sequence_queue.extend(node_data)
             else:
@@ -355,7 +372,52 @@ class AlexaAPI():
                                  soundStringId=sound_string_id,
                                  skillId='amzn1.ask.1p.sound')
 
-    async def send_tts(self, message: Text, customer_id: Text = None
+    def process_targets(self,
+                        targets: Optional[List[Text]] = None
+                        ) -> List[Dict[Text, Text]]:
+        """Process targets list to generate list of devices.
+
+        Keyword Arguments:
+            targets {Optional[List[Text]]} -- List of serial numbers
+                (default: {[]})
+
+        Returns:
+            List[Dict[Text, Text] -- List of device dicts
+
+        """
+        targets = targets or []
+        devices = []
+        if self._device._device_family == "WHA":
+            # Build group of devices based off _cluster_members
+            for dev in AlexaAPI.devices[self._login.email]:
+                if dev["serialNumber"] in self._device._cluster_members:
+                    devices.append(
+                        {
+                            "deviceSerialNumber": dev["serialNumber"],
+                            "deviceTypeId": dev["deviceType"],
+                        }
+                    )
+        elif targets and isinstance(targets, list):
+            for dev in AlexaAPI.devices[self._login.email]:
+                if (dev["serialNumber"] in targets
+                        or dev["accountName"] in targets):
+                    devices.append(
+                        {
+                            "deviceSerialNumber": dev["serialNumber"],
+                            "deviceTypeId": dev["deviceType"],
+                        }
+                    )
+        else:
+            devices.append(
+                {
+                    "deviceSerialNumber": self._device.unique_id,
+                    "deviceTypeId": self._device._device_type,
+                }
+            )
+        return devices
+
+    async def send_tts(self, message: Text, customer_id: Text = None,
+                       targets: Optional[List[Text]] = None
                        ) -> None:
         """Send message for TTS at speaker.
 
@@ -369,18 +431,28 @@ class AlexaAPI():
                              specified this defaults to the device owner. Used
                              with households where others may have their own
                              music.
+        targets (list(string)): WARNING: This is currently non functional due
+                                to Alexa's API and is only included for future
+                                proofing.
+                                List of serialNumber or accountName to send the
+                                tts to. Only those in this AlexaAPI
+                                account will be searched. If None, announce
+                                will be self.
 
         """
+        target = {"customerId": customer_id,
+                  "devices": self.process_targets(targets)}
         await self.send_sequence("Alexa.Speak",
                                  customerId=customer_id,
                                  textToSpeak=message,
+                                 target=target,
                                  skillId='amzn1.ask.1p.saysomething')
 
     async def send_announcement(self, message: Text,
                                 method: Text = "all",
                                 title: Text = "Announcement",
                                 customer_id: Text = None,
-                                targets: Text = None) -> None:
+                                targets: Optional[List[Text]] = None) -> None:
         # pylint: disable=too-many-arguments
         """Send announcment to Alexa devices.
 
@@ -409,25 +481,8 @@ class AlexaAPI():
                                else "en-US"),
                     "display": display,
                     "speak": speak}]
-        devices = []
-        if self._device._device_family == "WHA":
-            # Build group of devices based off _cluster_members
-            for dev in AlexaAPI.devices[self._login.email]:
-                if dev['serialNumber'] in self._device._cluster_members:
-                    devices.append({"deviceSerialNumber": dev['serialNumber'],
-                                    "deviceTypeId": dev['deviceType']})
-        elif targets and isinstance(targets, list):
-            for dev in AlexaAPI.devices[self._login.email]:
-                if (dev['serialNumber'] in targets or
-                        dev['accountName'] in targets):
-                    devices.append({"deviceSerialNumber": dev['serialNumber'],
-                                    "deviceTypeId": dev['deviceType']})
-        else:
-            devices.append({"deviceSerialNumber": self._device.unique_id,
-                            "deviceTypeId": self._device._device_type})
-
         target = {"customerId": customer_id,
-                  "devices": devices}
+                  "devices": self.process_targets(targets)}
         await self.send_sequence("AlexaAnnouncement",
                                  customerId=customer_id,
                                  expireAfter="PT5S",
@@ -812,7 +867,7 @@ class AlexaAPI():
                    "offset": -1
                    }
             )
-        import urllib.parse  # pylint: disable=import-outside-toplevel
+        import urllib.parse
         completed = True
         response_json = (await response.json(content_type=None))['activities']
         if not response_json:
