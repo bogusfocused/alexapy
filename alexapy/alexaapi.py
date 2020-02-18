@@ -189,15 +189,18 @@ class AlexaAPI():
             }
             if AlexaAPI._sequence_queue:
                 last_node = AlexaAPI._sequence_queue[-1]
+                new_node = node_data
+                if node_data and isinstance(node_data, list):
+                    new_node = node_data[0]
                 if ((last_node.get("operationPayload", {}).get(
                         "deviceSerialNumber")
-                     and node_data.get("operationPayload", {}).get(
+                     and new_node.get("operationPayload", {}).get(
                          "deviceSerialNumber")
                      ) and
                         last_node.get(
                             "operationPayload",
                             {}
-                            ).get("deviceSerialNumber") != node_data.get(
+                            ).get("deviceSerialNumber") != new_node.get(
                                 "operationPayload",
                                 {}).get("deviceSerialNumber")):
                     _LOGGER.debug("Creating Parallel node")
