@@ -867,7 +867,7 @@ class AlexaAPI():
                    "offset": -1
                    }
             )
-        import urllib.parse  # pylint: disable=import-outside-toplevel
+        import urllib.parse
         completed = True
         response_json = (await response.json(content_type=None))['activities']
         if not response_json:
