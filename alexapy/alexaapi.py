@@ -187,6 +187,23 @@ class AlexaAPI():
                 "@type": "com.amazon.alexa.behaviors.model.SerialNode",
                 "nodesToExecute": []
             }
+            if AlexaAPI._sequence_queue:
+                last_node = AlexaAPI._sequence_queue[-1]
+                if ((last_node.get("operationPayload", {}).get(
+                        "deviceSerialNumber")
+                     and node_data.get("operationPayload", {}).get(
+                         "deviceSerialNumber")
+                     ) and
+                        last_node.get(
+                            "operationPayload",
+                            {}
+                            ).get("deviceSerialNumber") != node_data.get(
+                                "operationPayload",
+                                {}).get("deviceSerialNumber")):
+                    _LOGGER.debug("Creating Parallel node")
+                    sequence_json["startNode"][
+                        "@type"
+                        ] = "com.amazon.alexa.behaviors.model.ParallelNode"
             if isinstance(node_data, list):
                 AlexaAPI._sequence_queue.extend(node_data)
             else:
