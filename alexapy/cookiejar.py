@@ -26,28 +26,29 @@ from yarl import URL
 
 def next_whole_second() -> datetime.datetime:
     """Return current time rounded up to the next whole second."""
-    return (
-        datetime.datetime.now(
-            datetime.timezone.utc).replace(microsecond=0) +
-        datetime.timedelta(seconds=0)
-    )
+    return datetime.datetime.now(datetime.timezone.utc).replace(
+        microsecond=0
+    ) + datetime.timedelta(seconds=0)
 
 
 class FixedCookieJar(CookieJar):
     # pylint: disable=too-many-branches
     """Fixed version of CookieJar that handles expired cookies."""
 
-    MAX_TIME = datetime.datetime.max.replace(
-        tzinfo=datetime.timezone.utc)
+    MAX_TIME = datetime.datetime.max.replace(tzinfo=datetime.timezone.utc)
 
-    def __init__(self, *, unsafe: bool = False) -> None: # noqa
+    def __init__(self, *, unsafe: bool = False) -> None:  # noqa
         # pylint: disable=super-init-not-called
         self._loop = get_running_loop()
-        self._cookies = defaultdict(SimpleCookie) #type: DefaultDict[str, SimpleCookie[str]] # noqa
+        self._cookies = defaultdict(
+            SimpleCookie
+        )  # type: DefaultDict[str, SimpleCookie[str]] # noqa
         self._host_only_cookies = set()  # type: Set[Tuple[str, str]]
         self._unsafe = unsafe
         self._next_expiration = next_whole_second()
-        self._expirations = {}  # type: Dict[Tuple[str, str], datetime.datetime]  # noqa: E501
+        self._expirations = (
+            {}
+        )  # type: Dict[Tuple[str, str], datetime.datetime]  # noqa: E501
 
     def _do_expiration(self) -> None:
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -70,19 +71,17 @@ class FixedCookieJar(CookieJar):
             del expirations[key]
 
         try:
-            self._next_expiration = (next_expiration.replace(microsecond=0) +
-                                     datetime.timedelta(seconds=1))
+            self._next_expiration = next_expiration.replace(
+                microsecond=0
+            ) + datetime.timedelta(seconds=1)
         except OverflowError:
             self._next_expiration = self.MAX_TIME
 
-    def _expire_cookie(self, when: datetime.datetime, domain: str, name: str
-                       ) -> None:
+    def _expire_cookie(self, when: datetime.datetime, domain: str, name: str) -> None:
         self._next_expiration = min(self._next_expiration, when)
         self._expirations[(domain, name)] = when
 
-    def update_cookies(self,
-                       cookies: LooseCookies,
-                       response_url: URL = URL()) -> None:
+    def update_cookies(self, cookies: LooseCookies, response_url: URL = URL()) -> None:
         """Update cookies."""
         hostname = response_url.raw_host
 
@@ -102,7 +101,7 @@ class FixedCookieJar(CookieJar):
             domain = cookie["domain"]
 
             # ignore domains with trailing dots
-            if domain.endswith('.'):
+            if domain.endswith("."):
                 domain = ""
                 del cookie["domain"]
 
@@ -129,7 +128,7 @@ class FixedCookieJar(CookieJar):
                     path = "/"
                 else:
                     # Cut everything from the last slash to the end
-                    path = "/" + path[1:path.rfind("/")]
+                    path = "/" + path[1 : path.rfind("/")]
                 cookie["path"] = path
 
             max_age = cookie["max-age"]
@@ -137,13 +136,12 @@ class FixedCookieJar(CookieJar):
                 try:
                     delta_seconds = int(max_age)
                     try:
-                        max_age_expiration = (
-                            datetime.datetime.now(datetime.timezone.utc) +
-                            datetime.timedelta(seconds=delta_seconds))
+                        max_age_expiration = datetime.datetime.now(
+                            datetime.timezone.utc
+                        ) + datetime.timedelta(seconds=delta_seconds)
                     except OverflowError:
                         max_age_expiration = self.MAX_TIME
-                    self._expire_cookie(max_age_expiration,
-                                        domain, name)
+                    self._expire_cookie(max_age_expiration, domain, name)
                 except ValueError:
                     cookie["max-age"] = ""
 
@@ -152,8 +150,7 @@ class FixedCookieJar(CookieJar):
                 if expires:
                     expire_time = self._parse_date(expires)
                     if expire_time:
-                        self._expire_cookie(expire_time,
-                                            domain, name)
+                        self._expire_cookie(expire_time, domain, name)
                     else:
                         cookie["expires"] = ""
 
