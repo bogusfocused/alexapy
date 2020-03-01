@@ -305,6 +305,8 @@ class AlexaAPI:
             """Search node and replace with this Alexa's device_info."""
             if "devices" in node:
                 list(map(_populate_device_info, node["devices"]))
+            elif "targetDevice" in node:
+                _populate_device_info(node["targetDevice"])
             elif "operationPayload" in node:
                 _populate_device_info(node["operationPayload"])
             else:
