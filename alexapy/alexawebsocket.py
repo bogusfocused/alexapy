@@ -11,8 +11,16 @@ import asyncio
 import json
 import logging
 import time
-from typing import (Any, Callable,  # noqa pylint: disable=unused-import
-                    Coroutine, Dict, List, Optional, Text, Union, cast)
+from typing import (
+    Any,
+    Callable,  # noqa pylint: disable=unused-import
+    Coroutine,
+    Dict,
+    List,
+    Text,
+    Union,
+    cast,
+)
 
 import aiohttp
 
@@ -59,7 +67,7 @@ class Message:
         self.json_payload: Dict[Text, Union[Text, Dict[Text, Text]]] = {}
 
 
-class WebsocketEchoClient():
+class WebsocketEchoClient:
     # pylint: disable=too-many-instance-attributes
     """WebSocket Client Class for Echo Devices.
 
@@ -69,57 +77,56 @@ class WebsocketEchoClient():
     https://github.com/Apollon77/alexa-remote/blob/master/alexa-wsmqtt.js
     """
 
-    def __init__(self,
-                 login: AlexaLogin,
-                 msg_callback: Callable[[Message], Coroutine[Any, Any, None]],
-                 open_callback: Callable[[], Coroutine[Any, Any, None]],
-                 close_callback: Callable[[], Coroutine[Any, Any, None]],
-                 error_callback: Callable[[Text], Coroutine[Any, Any, None]]
-                 ) -> None:
+    def __init__(
+        self,
+        login: AlexaLogin,
+        msg_callback: Callable[[Message], Coroutine[Any, Any, None]],
+        open_callback: Callable[[], Coroutine[Any, Any, None]],
+        close_callback: Callable[[], Coroutine[Any, Any, None]],
+        error_callback: Callable[[Text], Coroutine[Any, Any, None]],
+    ) -> None:
         # pylint: disable=too-many-arguments
         """Init for threading and WebSocket Connection."""
-        if login.url.lower() == 'amazon.com':
-            subdomain = 'dp-gw-na-js'  # type: Text
+        if login.url.lower() == "amazon.com":
+            subdomain = "dp-gw-na-js"  # type: Text
         else:
-            subdomain = 'dp-gw-na'
-        url = ("wss://{}.{}/?x-amz-device-type={}"
-               "&x-amz-device-serial=").format(subdomain,
-                                               login.url,
-                                               'ALEGCNGL9K0HM')
+            subdomain = "dp-gw-na"
+        url = ("wss://{}.{}/?x-amz-device-type={}" "&x-amz-device-serial=").format(
+            subdomain, login.url, "ALEGCNGL9K0HM"
+        )
         assert login.session is not None
         self._session = login.session
-        self._cookies: Dict[Text, Text] = login._cookies \
-            if login._cookies else {}
+        self._cookies: Dict[Text, Text] = login._cookies if login._cookies else {}
         self._headers = login._headers
         self._ssl = login._ssl
         cookies = ""  # type: Text
         assert self._cookies is not None
         for key, value in self._cookies.items():
             cookies += "{}={}; ".format(key, value)
-        self._headers['Cookie'] = cookies
+        self._headers["Cookie"] = cookies
         # the old websocket-client auto populates origin, which
         # aiohttp does not and is necessary for Amazon to accept a login
-        self._headers['Origin'] = "https://alexa." + login.url
-        url_array: List[Text] = login.url.split('.')
+        self._headers["Origin"] = "https://alexa." + login.url
+        url_array: List[Text] = login.url.split(".")
         ubid_id: Text = f"ubid-acb{url_array[len(url_array)-1]}"
         if ubid_id in self._cookies:
             url += str(self._cookies[ubid_id])
-        elif 'ubid-main' in self._cookies:
-            url += str(self._cookies['ubid-main'])
+        elif "ubid-main" in self._cookies:
+            url += str(self._cookies["ubid-main"])
         else:
-            _LOGGER.warning("Websocket is missing ubid-main and %s cookies;"
-                            " please report this if anything isn't working.",
-                            ubid_id)
+            _LOGGER.warning(
+                "Websocket is missing ubid-main and %s cookies;"
+                " please report this if anything isn't working.",
+                ubid_id,
+            )
         url += "-" + str(int(time.time())) + "000"
         # url = "ws://localhost:8080/ws"
-        self.open_callback: \
-            Callable[[], Coroutine[Any, Any, None]] = open_callback
-        self.msg_callback: \
-            Callable[[Message], Coroutine[Any, Any, None]] = msg_callback
-        self.close_callback: \
-            Callable[[], Coroutine[Any, Any, None]] = close_callback
-        self.error_callback: \
-            Callable[[Text], Coroutine[Any, Any, None]] = error_callback
+        self.open_callback: Callable[[], Coroutine[Any, Any, None]] = open_callback
+        self.msg_callback: Callable[[Message], Coroutine[Any, Any, None]] = msg_callback
+        self.close_callback: Callable[[], Coroutine[Any, Any, None]] = close_callback
+        self.error_callback: Callable[
+            [Text], Coroutine[Any, Any, None]
+        ] = error_callback
         self._wsurl: Text = url
         self.websocket: aiohttp.ClientWebSocketResponse
         self._loop: asyncio.AbstractEventLoop
@@ -127,12 +134,9 @@ class WebsocketEchoClient():
     async def async_run(self) -> None:
         """Start Async WebSocket Listener."""
         _LOGGER.debug("Connecting to %s with %s", self._wsurl, self._headers)
-        self.websocket = \
-            await self._session.ws_connect(
-                self._wsurl,
-                headers=self._headers,
-                heartbeat=180,
-                ssl=self._ssl)
+        self.websocket = await self._session.ws_connect(
+            self._wsurl, headers=self._headers, heartbeat=180, ssl=self._ssl
+        )
         loop = asyncio.get_event_loop()
         self._loop = loop
         task = loop.create_task(self.process_messages())
@@ -153,7 +157,7 @@ class WebsocketEchoClient():
     async def on_message(self, message: bytes) -> None:
         # pylint: disable=too-many-statements
         """Handle New Message."""
-        msg: Text = message.decode('utf-8')
+        msg: Text = message.decode("utf-8")
         _LOGGER.debug("Received WebSocket: %s", msg)
         message_obj: Message = Message()
         message_obj.service = msg[-4:]
@@ -161,57 +165,55 @@ class WebsocketEchoClient():
         if message_obj.service == "FABE":
             message_obj.message_type = msg[:3]
             idx += 4
-            message_obj.channel = int(msg[idx:idx+10], 16)
+            message_obj.channel = int(msg[idx : idx + 10], 16)
             idx += 11
-            message_obj.message_id = int(msg[idx:idx+10], 16)
+            message_obj.message_id = int(msg[idx : idx + 10], 16)
             idx += 11
-            message_obj.more_flag = msg[idx:idx+1]
+            message_obj.more_flag = msg[idx : idx + 1]
             idx += 2
-            message_obj.seq = int(msg[idx:idx+10], 16)
+            message_obj.seq = int(msg[idx : idx + 10], 16)
             idx += 11
-            message_obj.checksum = int(msg[idx:idx+10], 16)
+            message_obj.checksum = int(msg[idx : idx + 10], 16)
             idx += 11
             # currently not used: long contentLength = readHex(data, idx, 10);
             idx += 11
-            message_obj.content.message_type = msg[idx:idx+3]
+            message_obj.content.message_type = msg[idx : idx + 3]
             idx += 4
 
             if message_obj.channel == 0x00000361:
                 _LOGGER.debug("Received ACK MSG for Registration.")
                 if message_obj.content.message_type == "ACK":
-                    length = int(msg[idx:idx+10], 16)
+                    length = int(msg[idx : idx + 10], 16)
                     idx += 11
-                    message_obj.content.protocol_version = msg[idx:idx+length]
+                    message_obj.content.protocol_version = msg[idx : idx + length]
                     idx += length + 1
-                    length = int(msg[idx:idx+10], 16)
+                    length = int(msg[idx : idx + 10], 16)
                     idx += 11
-                    message_obj.content.connection_uuid = msg[idx:idx+length]
+                    message_obj.content.connection_uuid = msg[idx : idx + length]
                     idx += length + 1
-                    message_obj.content.established = int(msg[idx:idx+10], 16)
+                    message_obj.content.established = int(msg[idx : idx + 10], 16)
                     idx += 11
-                    message_obj.content.timestamp_ini = int(msg[idx:idx+18],
-                                                            16)
+                    message_obj.content.timestamp_ini = int(msg[idx : idx + 18], 16)
                     idx += 19
-                    message_obj.content.timestamp_ack = int(msg[idx:idx+18],
-                                                            16)
+                    message_obj.content.timestamp_ack = int(msg[idx : idx + 18], 16)
                     idx += 19
 
             elif message_obj.channel == 0x00000362:
                 _LOGGER.debug("Received Standard MSG.")
                 if message_obj.content.message_type == "GWM":
-                    message_obj.content.submessage_type = msg[idx:idx+3]
+                    message_obj.content.submessage_type = msg[idx : idx + 3]
                     idx += 4
-                    message_obj.content.channel = int(msg[idx:idx+10], 16)
+                    message_obj.content.channel = int(msg[idx : idx + 10], 16)
                     idx += 11
 
-                    if message_obj.content.channel == 0x0000b479:
-                        length = int(msg[idx:idx+10], 16)
+                    if message_obj.content.channel == 0x0000B479:
+                        length = int(msg[idx : idx + 10], 16)
                         idx += 11
-                        message_obj.content.dest_id_urn = msg[idx:idx+length]
+                        message_obj.content.dest_id_urn = msg[idx : idx + length]
                         idx += length + 1
-                        length = int(msg[idx:idx+10], 16)
+                        length = int(msg[idx : idx + 10], 16)
                         idx += 11
-                        id_data = msg[idx:idx+length]
+                        id_data = msg[idx : idx + length]
                         idx += length + 1
                         id_data_elements = id_data.split(" ", 2)
                         message_obj.content.device_id_urn = id_data_elements[0]
@@ -222,17 +224,19 @@ class WebsocketEchoClient():
                             payload = msg[idx:-4]
                         message_obj.content.payload = payload
                         message_obj.json_payload = json.loads(str(payload))
-                        (message_obj.json_payload
-                         ['payload']) = json.loads(
-                             (message_obj.json_payload  # type: ignore
-                              ['payload']))
+                        (message_obj.json_payload["payload"]) = json.loads(
+                            (
+                                message_obj.json_payload[  # type: ignore
+                                    "payload"
+                                ]
+                            )
+                        )
             await self.msg_callback(message_obj)
 
     def on_error(self, error: Text = "Unspecified") -> None:
         """Handle WebSocket Error."""
         _LOGGER.error("WebSocket Error: %s", error)
-        asyncio.run_coroutine_threadsafe(self.error_callback(error),
-                                         self._loop)
+        asyncio.run_coroutine_threadsafe(self.error_callback(error), self._loop)
 
     def on_close(self, future="") -> None:
         """Handle WebSocket Close."""
@@ -240,14 +244,12 @@ class WebsocketEchoClient():
         if exception_:
             self.on_error(str(type(exception_)))
         _LOGGER.debug("WebSocket Connection Closed. %s", future)
-        asyncio.run_coroutine_threadsafe(self.close_callback(),
-                                         self._loop)
+        asyncio.run_coroutine_threadsafe(self.close_callback(), self._loop)
 
     async def async_on_open(self) -> None:
         """Handle Async WebSocket Open."""
         _LOGGER.debug("Initating Async Handshake.")
-        await self.websocket.send_bytes(bytes("0x99d4f71a 0x0000001d A:HTUNE",
-                                              'utf-8'))
+        await self.websocket.send_bytes(bytes("0x99d4f71a 0x0000001d A:HTUNE", "utf-8"))
         await asyncio.sleep(0.1)
         await self.websocket.send_bytes(self._encode_ws_handshake())
         await asyncio.sleep(0.1)
@@ -262,10 +264,10 @@ class WebsocketEchoClient():
         _LOGGER.debug("Encoding WebSocket Handshake MSG.")
         msg = "0xa6f6a951 "
         msg += "0x0000009c "
-        msg += "{\"protocolName\":\"A:H\",\"parameters\":"
-        msg += "{\"AlphaProtocolHandler.receiveWindowSize\":\"16\",\""
-        msg += "AlphaProtocolHandler.maxFragmentSize\":\"16000\"}}TUNE"
-        return bytes(msg, 'utf-8')
+        msg += '{"protocolName":"A:H","parameters":'
+        msg += '{"AlphaProtocolHandler.receiveWindowSize":"16","'
+        msg += 'AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE'
+        return bytes(msg, "utf-8")
 
     def _encode_gw_handshake(self) -> bytes:
         # pylint: disable=no-self-use
@@ -278,7 +280,7 @@ class WebsocketEchoClient():
         msg += "01e09e62-f504-476c-85c8-9c97c8da26ed "  # Message UUID
         msg += "0x0000016978ff598c "  # Hex encoded timestamp
         msg += "END FABE"
-        return bytes(msg, 'utf-8')
+        return bytes(msg, "utf-8")
 
     def _encode_gw_register(self) -> bytes:
         # pylint: disable=no-self-use
@@ -292,6 +294,6 @@ class WebsocketEchoClient():
         msg += "0x00000041 "
         msg += "urn:tcomm-endpoint:service:serviceName:"
         msg += "DeeWebsiteMessagingService "
-        msg += "{\"command\":\"REGISTER_CONNECTION\"}"  # Message UUID
+        msg += '{"command":"REGISTER_CONNECTION"}'  # Message UUID
         msg += "FABE"
-        return bytes(msg, 'utf-8')
+        return bytes(msg, "utf-8")
