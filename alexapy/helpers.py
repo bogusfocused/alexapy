@@ -11,6 +11,7 @@ https://gitlab.com/keatontaylor/alexapy
 """
 import logging
 from json import JSONDecodeError
+from json.decoder import JSONDecodeError as JSONDecodeError2
 
 from aiohttp import ClientConnectionError
 
@@ -75,7 +76,7 @@ def _catch_all_exceptions(func):
                 message,
             )
             raise AlexapyConnectionError
-        except JSONDecodeError as ex:
+        except (JSONDecodeError, JSONDecodeError2) as ex:
             message = template.format(type(ex).__name__, ex.args)
             _LOGGER.error(
                 "%s.%s: A login error occured: %s",
