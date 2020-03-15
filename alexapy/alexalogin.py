@@ -617,7 +617,7 @@ class AlexaLogin:
                     site = status["ap_error_href"]
                 _LOGGER.debug("Found post url to get; forcing get to %s", site)
                 self._lastreq = None
-            elif formsite != "get":
+            elif formsite and formsite != "get":
                 site = formsite
                 _LOGGER.debug("Found post url to %s", site)
         return site
