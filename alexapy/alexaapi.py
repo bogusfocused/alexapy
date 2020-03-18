@@ -24,7 +24,11 @@ from yarl import URL
 import backoff
 
 from .alexalogin import AlexaLogin
-from .errors import AlexapyLoginError, AlexapyTooManyRequestsError
+from .errors import (
+    AlexapyLoginError,
+    AlexapyTooManyRequestsError,
+    AlexapyConnectionError,
+)
 from .helpers import _catch_all_exceptions, hide_email
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,14 +68,14 @@ class AlexaAPI:
                 ex,
             )
 
-    @_catch_all_exceptions
     @backoff.on_exception(
         backoff.expo,
-        AlexapyTooManyRequestsError,
+        (AlexapyTooManyRequestsError, AlexapyConnectionError),
         max_time=60,
         max_tries=5,
         logger=__name__,
     )
+    @_catch_all_exceptions
     async def _request(
         self,
         method: Text,
@@ -132,14 +136,14 @@ class AlexaAPI:
         return await self._request("delete", uri, data)
 
     @staticmethod
-    @_catch_all_exceptions
     @backoff.on_exception(
         backoff.expo,
-        AlexapyTooManyRequestsError,
+        (AlexapyTooManyRequestsError, AlexapyConnectionError),
         max_time=60,
         max_tries=5,
         logger=__name__,
     )
+    @_catch_all_exceptions
     async def _static_request(
         method: Text,
         login: AlexaLogin,
