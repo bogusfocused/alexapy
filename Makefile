@@ -27,8 +27,7 @@ pylint:
 # 	poetry run twine upload dist/*
 # 	rm -rf dist/ build/ .egg alexapy.egg-info/
 setup_env:
-	curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
-	source $HOME/.poetry/env
+	pip install poetry
 test:
 	#Not implemented yet
 	#poetry run py.test
