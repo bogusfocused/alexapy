@@ -325,7 +325,6 @@ class AlexaLogin:
     ) -> None:
         # pylint: disable=too-many-branches,too-many-locals,
         # pylint: disable=too-many-statements
-        # pylint: disable=import-outside-toplevel
         """Login to Amazon."""
         data = data or {}
         if cookies and await self.test_loggedin(cookies):
