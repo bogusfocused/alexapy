@@ -325,7 +325,6 @@ class AlexaLogin:
     ) -> None:
         # pylint: disable=too-many-branches,too-many-locals,
         # pylint: disable=too-many-statements
-        # pylint: disable=import-outside-toplevel
         """Login to Amazon."""
         data = data or {}
         if cookies and await self.test_loggedin(cookies):
@@ -617,7 +616,7 @@ class AlexaLogin:
                     site = status["ap_error_href"]
                 _LOGGER.debug("Found post url to get; forcing get to %s", site)
                 self._lastreq = None
-            elif formsite != "get":
+            elif formsite and formsite != "get":
                 site = formsite
                 _LOGGER.debug("Found post url to %s", site)
         return site

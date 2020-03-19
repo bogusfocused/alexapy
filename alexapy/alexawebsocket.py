@@ -256,6 +256,9 @@ class WebsocketEchoClient:
         await self.websocket.send_bytes(self._encode_gw_handshake())
         await asyncio.sleep(0.1)
         await self.websocket.send_bytes(self._encode_gw_register())
+        await asyncio.sleep(0.1)
+        await self.websocket.send_bytes(self._encode_ping())
+        await asyncio.sleep(0.5)
         if not self.websocket.closed:
             await self.open_callback()
 
@@ -297,3 +300,15 @@ class WebsocketEchoClient:
         msg += '{"command":"REGISTER_CONNECTION"}'  # Message UUID
         msg += "FABE"
         return bytes(msg, "utf-8")
+
+    def _encode_ping(self) -> bytes:
+        # pylint: disable=no-self-use
+        _LOGGER.debug("Encoding PING.")
+        msg = "MSG 0x00000065 "  # MSG channel
+        msg += "0x0e414e47 f 0x00000001 "  # Message number with no cont
+        msg += "0xbc2fbb5f "  # Checksum
+        msg += "0x00000062 "  # Content Length
+        msg += "PIN30"  # Message content
+        msg += "FABE"
+        return bytes(msg, "utf-8")
+        # MSG 0x00000065 0x0e414e47 f 0x00000001 0xbc2fbb5f 0x00000062 PIN" + 30 + "FABE"
