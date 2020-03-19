@@ -14,21 +14,23 @@ clean:
 	rm -rf dist/ build/ .egg alexapy.egg-info/
 init: setup_env
 	poetry install
-lint: flake8 docstyle pylint typing
+lint: flake8 docstyle pylint typing black
 flake8:
 	poetry run flake8 alexapy
 docstyle:
 	poetry run pydocstyle alexapy
 pylint:
 	poetry run pylint alexapy
+black:
+	poetry run black alexapy
+
 # publish:
 # deprecated by semantic-release
 # 	poetry run python setup.py sdist bdist_wheel
 # 	poetry run twine upload dist/*
 # 	rm -rf dist/ build/ .egg alexapy.egg-info/
 setup_env:
-	curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
-	source $HOME/.poetry/env
+	pip install poetry
 test:
 	#Not implemented yet
 	#poetry run py.test
