@@ -20,7 +20,7 @@ simplejson = "*"
 yarl = "*"
 requests = "*"
 certifi = "*"
-backoff = "*"
+backoff = "^1.10.0"
 
 [tool.poetry.dev-dependencies]
 aresponses = "*"
