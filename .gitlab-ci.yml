@@ -28,7 +28,13 @@ lint:
   stage: test
   script:
     - make lint
+
+check_vulns:
+  stage: test
+  script:
     - make check_vulns
+  rules:
+    allow_failure: true
 
 bump_and_publish:
   stage: deploy
