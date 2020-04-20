@@ -189,7 +189,7 @@ class AlexaAPI:
             node_data (dict, list of dicts): The node_data to run.
             queue_delay (float, optional): The number of seconds to wait
                                           for commands to queue together.
-                                          Defaults to 0.5.
+                                          Defaults to 1.5.
                                           Must be positive.
 
         """
@@ -749,7 +749,7 @@ class AlexaAPI:
 
         Args:
         login (AlexaLogin): Successfully logged in AlexaLogin
-        entity_id (string): applianceId of RedRock Panel
+        entity_id (Text): applianceId of RedRock Panel
 
         Returns json
 
@@ -771,8 +771,8 @@ class AlexaAPI:
 
         Args:
         login (AlexaLogin): Successfully logged in AlexaLogin
-        entity_id (string): entityId of RedRock Panel
-        state (string): ARMED_AWAY, ARMED_STAY
+        entity_id (Text): entityId of RedRock Panel
+        state (Text): ARMED_AWAY, ARMED_STAY
 
         Returns json
 
