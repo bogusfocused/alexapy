@@ -246,7 +246,9 @@ class AlexaAPI:
         _LOGGER.debug("Running behavior with data: %s", json.dumps(data))
         await self._post_request("/api/behaviors/preview", data=data)
 
-    async def send_sequence(self, sequence: Text, **kwargs) -> None:
+    async def send_sequence(
+        self, sequence: Text, queue_delay: float = 1.5, **kwargs
+    ) -> None:
         """Send sequence command.
 
         This allows some programatic control of Echo device using the behaviors
@@ -258,6 +260,10 @@ class AlexaAPI:
                              specified this defaults to the device owner. Used
                              with households where others may have their own
                              music.
+        queue_delay (float, optional): The number of seconds to wait
+                                    for commands to queue together.
+                                    Defaults to 1.5.
+                                    Must be positive.
         **kwargs : Each named variable must match a recognized Amazon variable
                    within the operationPayload. Please see examples in
                    play_music, send_announcement, and send_tts.
@@ -293,7 +299,7 @@ class AlexaAPI:
             "type": sequence,
             "operationPayload": operation_payload,
         }
-        await self.run_behavior(node_data)
+        await self.run_behavior(node_data, queue_delay=queue_delay)
 
     async def run_routine(self, utterance: Text) -> None:
         """Run Alexa automation routine.
