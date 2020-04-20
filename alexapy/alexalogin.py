@@ -118,7 +118,8 @@ class AlexaLogin:
             try:
                 async with aiofiles.open(self._cookiefile, "rb") as myfile:
                     cookies = pickle.loads(await myfile.read())
-                    _LOGGER.debug("cookie loaded: %s %s", type(cookies), cookies)
+                    if self._debug:
+                        _LOGGER.debug("cookie loaded: %s %s", type(cookies), cookies)
             except (OSError, EOFError, pickle.UnpicklingError) as ex:
                 template = "An exception of type {0} occurred." " Arguments:\n{1!r}"
                 message = template.format(type(ex).__name__, ex.args)
@@ -134,7 +135,8 @@ class AlexaLogin:
                 assert self._cookies is not None
                 assert cookies is not None
                 for key, value in cookies.items():
-                    _LOGGER.debug('Key: "%s", Value: "%s"', key, value)
+                    if self._debug:
+                        _LOGGER.debug('Key: "%s", Value: "%s"', key, value)
                     self._cookies[str(key)] = value.strip('"')
                 numcookies = len(self._cookies)
             elif isinstance(cookies, defaultdict):
@@ -286,11 +288,12 @@ class AlexaLogin:
         cookie_jar = self._session.cookie_jar
         if self._cookies is None:
             self._cookies = {}
-        _LOGGER.debug(
-            "Updating self._cookies with %s session cookies:\n%s",
-            site,
-            self._print_session_cookies(),
-        )
+        if self._debug:
+            _LOGGER.debug(
+                "Updating self._cookies with %s session cookies:\n%s",
+                site,
+                self._print_session_cookies(),
+            )
         for cookie in cookie_jar:
             oldvalue = self._cookies[cookie.key] if cookie.key in self._cookies else ""
             if cookie["domain"] == str(site):
@@ -412,15 +415,25 @@ class AlexaLogin:
         status = resp.status
         reason = resp.reason
         headers = resp.request_info.headers
-        _LOGGER.debug(
-            "%s: \n%s with\n%s\n returned %s:%s with response %s",
-            method,
-            url,
-            headers,
-            status,
-            reason,
-            resp.headers,
-        )
+        if self._debug:
+            _LOGGER.debug(
+                "%s: \n%s with\n%s\n returned %s:%s with response %s",
+                method,
+                url,
+                headers,
+                status,
+                reason,
+                resp.headers,
+            )
+        else:
+            _LOGGER.debug(
+                "%s: \n%s returned %s:%s with response %s",
+                method,
+                url,
+                status,
+                reason,
+                resp.headers,
+            )
         self._headers["Referer"] = str(url)
         return url
 
@@ -572,7 +585,8 @@ class AlexaLogin:
                 status["login_successful"] = True
                 self._prepare_cookies_from_session(self._url)
                 assert self._session is not None
-                _LOGGER.debug("Saving cookie: %s", self._print_session_cookies())
+                if self._debug:
+                    _LOGGER.debug("Saving cookie: %s", self._print_session_cookies())
                 try:
                     cookie_jar = self._session.cookie_jar
                     assert isinstance(cookie_jar, aiohttp.CookieJar)
