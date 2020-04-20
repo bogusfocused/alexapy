@@ -189,7 +189,7 @@ class AlexaAPI:
             node_data (dict, list of dicts): The node_data to run.
             queue_delay (float, optional): The number of seconds to wait
                                           for commands to queue together.
-                                          Defaults to 0.5.
+                                          Defaults to 1.5.
                                           Must be positive.
 
         """
@@ -246,7 +246,9 @@ class AlexaAPI:
         _LOGGER.debug("Running behavior with data: %s", json.dumps(data))
         await self._post_request("/api/behaviors/preview", data=data)
 
-    async def send_sequence(self, sequence: Text, **kwargs) -> None:
+    async def send_sequence(
+        self, sequence: Text, queue_delay: float = 1.5, **kwargs
+    ) -> None:
         """Send sequence command.
 
         This allows some programatic control of Echo device using the behaviors
@@ -258,6 +260,10 @@ class AlexaAPI:
                              specified this defaults to the device owner. Used
                              with households where others may have their own
                              music.
+        queue_delay (float, optional): The number of seconds to wait
+                                    for commands to queue together.
+                                    Defaults to 1.5.
+                                    Must be positive.
         **kwargs : Each named variable must match a recognized Amazon variable
                    within the operationPayload. Please see examples in
                    play_music, send_announcement, and send_tts.
@@ -293,7 +299,7 @@ class AlexaAPI:
             "type": sequence,
             "operationPayload": operation_payload,
         }
-        await self.run_behavior(node_data)
+        await self.run_behavior(node_data, queue_delay=queue_delay)
 
     async def run_routine(self, utterance: Text) -> None:
         """Run Alexa automation routine.
@@ -742,6 +748,27 @@ class AlexaAPI:
                     }
         return None
 
+    @_catch_all_exceptions
+    async def set_guard_state(self, entity_id: Text, state: Text) -> None:
+        """Set Guard state.
+
+        Args:
+        entity_id (Text): numeric ending of applianceId of RedRock Panel
+        state (Text): AWAY, HOME
+
+        Returns json
+
+        """
+        _LOGGER.debug("Setting Guard state: %s ", state)
+
+        await self.send_sequence(
+            "controlGuardState",
+            target=entity_id,
+            operationId="controlGuardState",
+            state=state,
+            skillId="amzn1.ask.skill.f71a9b50-e99a-4669-a226-d50ebb5e0830",
+        )
+
     @staticmethod
     @_catch_all_exceptions
     async def get_guard_state(login: AlexaLogin, entity_id: Text) -> Dict[Text, Any]:
@@ -749,7 +776,7 @@ class AlexaAPI:
 
         Args:
         login (AlexaLogin): Successfully logged in AlexaLogin
-        entity_id (string): applianceId of RedRock Panel
+        entity_id (Text): applianceId of RedRock Panel
 
         Returns json
 
@@ -764,15 +791,15 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def set_guard_state(
+    async def static_set_guard_state(
         login: AlexaLogin, entity_id: Text, state: Text
     ) -> Dict[Text, Any]:
         """Set state of Alexa guard.
 
         Args:
         login (AlexaLogin): Successfully logged in AlexaLogin
-        entity_id (string): entityId of RedRock Panel
-        state (string): ARMED_AWAY, ARMED_STAY
+        entity_id (Text): entityId of RedRock Panel
+        state (Text): ARMED_AWAY, ARMED_STAY
 
         Returns json
 
