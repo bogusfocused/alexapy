@@ -45,7 +45,8 @@ bump_and_publish:
   script:
     - git config --global user.name "semantic-release (via GitLabCI)"
     - git config --global user.email "semantic-release@GitLabCI"
-    - make bump_and_publish
+    - pip install python-semantic-release
+    - semantic-release publish
   artifacts:
     paths:
       - dist
