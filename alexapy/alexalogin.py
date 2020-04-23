@@ -512,6 +512,8 @@ class AlexaLogin:
             self._data = self.get_inputs(soup, {"id": "auth-mfa-form"})
 
         elif claimspicker_tag is not None:
+            self._options = {}
+            index = 0
             claims_message = ""
             options_message = ""
             for div in claimspicker_tag.findAll("div", "a-row"):
@@ -526,11 +528,14 @@ class AlexaLogin:
                     (label.find("span").string).strip() if label.find("span") else ""
                 )
                 valuemessage = (
-                    ("* **`{}`**:\t `{}`.\n".format(value, message))
+                    (f"* **`{index}`**:\t `{value} - {message}`.\n")
                     if value != ""
                     else ""
                 )
                 options_message += valuemessage
+                if value:
+                    self._options[str(index)] = value
+                    index += 1
             _LOGGER.debug(
                 "Verification method requested: %s, %s", claims_message, options_message
             )
@@ -681,7 +686,8 @@ class AlexaLogin:
                 self._data["otpCode"] = securitycode
                 self._data["rememberDevice"] = "true"
             if claimsoption is not None and "option" in self._data:
-                self._data["option"] = claimsoption
+                assert self._options is not None
+                self._data["option"] = self._options[str(claimsoption)]
             if authopt is not None and "otpDeviceContext" in self._data:
                 assert self._options is not None
                 self._data["otpDeviceContext"] = self._options[str(authopt)]
