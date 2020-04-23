@@ -97,7 +97,7 @@ class AlexaLogin:
         result = ""
         assert self._links is not None
         for key, value in self._links.items():
-            result += "link{}:{}\n".format(key, value[0])
+            result += f"link{key}:{value[0]}\n"
         return result
 
     async def login_with_cookie(self) -> None:
@@ -379,7 +379,13 @@ class AlexaLogin:
 
             async with aiofiles.open(self._debugget, mode="wb") as localfile:
                 await localfile.write(await resp.read())
+        # This commented block can be used to read a file directly to process.
+        # import aiofiles
 
+        # async with aiofiles.open(
+        #     "/config/verificationneeded_options.html", "rb"
+        # ) as myfile:
+        #     html = await myfile.read()
         site = await self._process_page(html, site)
         missing_params = self._populate_data(site, data)
         if self._debug:
@@ -512,10 +518,12 @@ class AlexaLogin:
             self._data = self.get_inputs(soup, {"id": "auth-mfa-form"})
 
         elif claimspicker_tag is not None:
+            self._options = {}
+            index = 0
             claims_message = ""
             options_message = ""
             for div in claimspicker_tag.findAll("div", "a-row"):
-                claims_message += "{}\n".format(div.text)
+                claims_message += f"{div.text}\n"
             for label in claimspicker_tag.findAll("label"):
                 value = (
                     (label.find("input")["value"]).strip()
@@ -526,11 +534,14 @@ class AlexaLogin:
                     (label.find("span").string).strip() if label.find("span") else ""
                 )
                 valuemessage = (
-                    ("* **`{}`**:\t `{}`.\n".format(value, message))
+                    (f"* **`{index}`**:\t `{value} - {message}`.\n")
                     if value != ""
                     else ""
                 )
                 options_message += valuemessage
+                if value:
+                    self._options[str(index)] = value
+                    index += 1
             _LOGGER.debug(
                 "Verification method requested: %s, %s", claims_message, options_message
             )
@@ -544,7 +555,7 @@ class AlexaLogin:
             authoptions_message = ""
             for div in soup.findAll("div", "a-box-inner"):
                 if div.find("p"):
-                    authselect_message += "{}\n".format(div.find("p").string)
+                    authselect_message += f"{div.find('p').string}\n"
             for label in authselect_tag.findAll("label"):
                 value = (
                     (label.find("input")["value"]).strip()
@@ -554,12 +565,11 @@ class AlexaLogin:
                 message = (
                     (label.find("span").string).strip() if label.find("span") else ""
                 )
-                valuemessage = (
-                    ("{}:\t{}\n".format(index, message)) if value != "" else ""
-                )
+                valuemessage = (f"{index}:\t{message}\n") if value != "" else ""
                 authoptions_message += valuemessage
-                self._options[str(index)] = value
-                index += 1
+                if value:
+                    self._options[str(index)] = value
+                    index += 1
             _LOGGER.debug(
                 "OTP method requested: %s%s", authselect_message, authoptions_message
             )
@@ -617,6 +627,8 @@ class AlexaLogin:
         # determine post url if not logged in
         if form_tag and "login_successful" not in status:
             formsite: Text = form_tag.get("action")
+            if self._debug:
+                _LOGGER.debug("Found form to process: %s", form_tag)
             if formsite and formsite == "verify":
                 import re
 
@@ -683,7 +695,8 @@ class AlexaLogin:
                 self._data["otpCode"] = securitycode
                 self._data["rememberDevice"] = "true"
             if claimsoption is not None and "option" in self._data:
-                self._data["option"] = claimsoption
+                assert self._options is not None
+                self._data["option"] = self._options[str(claimsoption)]
             if authopt is not None and "otpDeviceContext" in self._data:
                 assert self._options is not None
                 self._data["otpDeviceContext"] = self._options[str(authopt)]

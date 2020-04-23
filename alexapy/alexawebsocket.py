@@ -235,7 +235,7 @@ class WebsocketEchoClient:
 
     def on_error(self, error: Text = "Unspecified") -> None:
         """Handle WebSocket Error."""
-        _LOGGER.error("WebSocket Error: %s", error)
+        _LOGGER.debug("WebSocket Error: %s", error)
         asyncio.run_coroutine_threadsafe(self.error_callback(error), self._loop)
 
     def on_close(self, future="") -> None:
