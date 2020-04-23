@@ -97,7 +97,7 @@ class AlexaLogin:
         result = ""
         assert self._links is not None
         for key, value in self._links.items():
-            result += "link{}:{}\n".format(key, value[0])
+            result += f"link{key}:{value[0]}\n"
         return result
 
     async def login_with_cookie(self) -> None:
@@ -515,7 +515,7 @@ class AlexaLogin:
             claims_message = ""
             options_message = ""
             for div in claimspicker_tag.findAll("div", "a-row"):
-                claims_message += "{}\n".format(div.text)
+                claims_message += f"{div.text}\n"
             for label in claimspicker_tag.findAll("label"):
                 value = (
                     (label.find("input")["value"]).strip()
@@ -544,7 +544,7 @@ class AlexaLogin:
             authoptions_message = ""
             for div in soup.findAll("div", "a-box-inner"):
                 if div.find("p"):
-                    authselect_message += "{}\n".format(div.find("p").string)
+                    authselect_message += f"{div.find('p').string}\n"
             for label in authselect_tag.findAll("label"):
                 value = (
                     (label.find("input")["value"]).strip()
@@ -554,9 +554,7 @@ class AlexaLogin:
                 message = (
                     (label.find("span").string).strip() if label.find("span") else ""
                 )
-                valuemessage = (
-                    ("{}:\t{}\n".format(index, message)) if value != "" else ""
-                )
+                valuemessage = (f"{index}:\t{message}\n") if value != "" else ""
                 authoptions_message += valuemessage
                 self._options[str(index)] = value
                 index += 1
