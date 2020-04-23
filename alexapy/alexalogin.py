@@ -379,7 +379,13 @@ class AlexaLogin:
 
             async with aiofiles.open(self._debugget, mode="wb") as localfile:
                 await localfile.write(await resp.read())
+        # This commented block can be used to read a file directly to process.
+        # import aiofiles
 
+        # async with aiofiles.open(
+        #     "/config/verificationneeded_options.html", "rb"
+        # ) as myfile:
+        #     html = await myfile.read()
         site = await self._process_page(html, site)
         missing_params = self._populate_data(site, data)
         if self._debug:
@@ -561,8 +567,9 @@ class AlexaLogin:
                 )
                 valuemessage = (f"{index}:\t{message}\n") if value != "" else ""
                 authoptions_message += valuemessage
-                self._options[str(index)] = value
-                index += 1
+                if value:
+                    self._options[str(index)] = value
+                    index += 1
             _LOGGER.debug(
                 "OTP method requested: %s%s", authselect_message, authoptions_message
             )
@@ -620,6 +627,8 @@ class AlexaLogin:
         # determine post url if not logged in
         if form_tag and "login_successful" not in status:
             formsite: Text = form_tag.get("action")
+            if self._debug:
+                _LOGGER.debug("Found form to process: %s", form_tag)
             if formsite and formsite == "verify":
                 import re
 
