@@ -301,13 +301,17 @@ class AlexaAPI:
         }
         await self.run_behavior(node_data, queue_delay=queue_delay)
 
-    async def run_routine(self, utterance: Text) -> None:
+    async def run_routine(self, utterance: Text, queue_delay: float = 1.5) -> None:
         """Run Alexa automation routine.
 
         This allows running of defined Alexa automation routines.
 
         Args:
             utterance (string): The Alexa utterance to run the routine.
+            queue_delay (float, optional): The number of seconds to wait
+                                        for commands to queue together.
+                                        Defaults to 1.5.
+                                        Must be positive.
 
         """
 
@@ -364,14 +368,20 @@ class AlexaAPI:
                     _populate_device_info(node)
                 new_nodes.append(node)
             sequence["startNode"]["nodesToExecute"] = new_nodes
-            await self.run_behavior(sequence["startNode"]["nodesToExecute"])
+            await self.run_behavior(
+                sequence["startNode"]["nodesToExecute"], queue_delay=queue_delay
+            )
         else:
             # Single entry with no nodesToExecute
             _populate_device_info(sequence["startNode"])
-            await self.run_behavior(sequence["startNode"])
+            await self.run_behavior(sequence["startNode"], queue_delay=queue_delay)
 
     async def play_music(
-        self, provider_id: Text, search_phrase: Text, customer_id: Text = None
+        self,
+        provider_id: Text,
+        search_phrase: Text,
+        customer_id: Text = None,
+        queue_delay: float = 1.5,
     ) -> None:
         """Play Music based on search."""
         await self.send_sequence(
@@ -380,15 +390,19 @@ class AlexaAPI:
             searchPhrase=search_phrase,
             sanitizedSearchPhrase=search_phrase,
             musicProviderId=provider_id,
+            queue_delay=queue_delay,
         )
 
-    async def play_sound(self, sound_string_id: Text, customer_id: Text = None) -> None:
+    async def play_sound(
+        self, sound_string_id: Text, customer_id: Text = None, queue_delay: float = 1.5
+    ) -> None:
         """Play Alexa sound."""
         await self.send_sequence(
             "Alexa.Sound",
             customerId=customer_id,
             soundStringId=sound_string_id,
             skillId="amzn1.ask.1p.sound",
+            queue_delay=queue_delay,
         )
 
     def process_targets(
@@ -439,6 +453,7 @@ class AlexaAPI:
         message: Text,
         customer_id: Text = None,
         targets: Optional[List[Text]] = None,
+        queue_delay: float = 1.5,
     ) -> None:
         """Send message for TTS at speaker.
 
@@ -459,6 +474,10 @@ class AlexaAPI:
                                 tts to. Only those in this AlexaAPI
                                 account will be searched. If None, announce
                                 will be self.
+        queue_delay (float, optional): The number of seconds to wait
+                                          for commands to queue together.
+                                          Defaults to 1.5.
+                                          Must be positive.
 
         """
         target = {"customerId": customer_id, "devices": self.process_targets(targets)}
@@ -468,6 +487,7 @@ class AlexaAPI:
             textToSpeak=message,
             target=target,
             skillId="amzn1.ask.1p.saysomething",
+            queue_delay=queue_delay,
         )
 
     async def send_announcement(
@@ -477,6 +497,7 @@ class AlexaAPI:
         title: Text = "Announcement",
         customer_id: Text = None,
         targets: Optional[List[Text]] = None,
+        queue_delay: float = 1.5,
     ) -> None:
         # pylint: disable=too-many-arguments
         """Send announcment to Alexa devices.
@@ -496,6 +517,10 @@ class AlexaAPI:
                                 announcement to. Only those in this AlexaAPI
                                 account will be searched. If None, announce
                                 will be self.
+        queue_delay (float, optional): The number of seconds to wait
+                                        for commands to queue together.
+                                        Defaults to 1.5.
+                                        Must be positive.
 
         """
         display = (
@@ -523,10 +548,15 @@ class AlexaAPI:
             content=content,
             target=target,
             skillId="amzn1.ask.1p.routines.messaging",
+            queue_delay=queue_delay,
         )
 
     async def send_mobilepush(
-        self, message: Text, title: Text = "AlexaAPI Message", customer_id: Text = None
+        self,
+        message: Text,
+        title: Text = "AlexaAPI Message",
+        customer_id: Text = None,
+        queue_delay: float = 1.5,
     ) -> None:
         """Send announcment to Alexa devices.
 
@@ -538,6 +568,10 @@ class AlexaAPI:
         title (string): Title for push notification
         customer_id (string): CustomerId to use for sending. When none
                               specified this defaults to the device owner.
+        queue_delay (float, optional): The number of seconds to wait
+                                        for commands to queue together.
+                                        Defaults to 1.5.
+                                        Must be positive.
 
         """
         await self.send_sequence(
@@ -551,6 +585,7 @@ class AlexaAPI:
             alexaUrl="#v2/behaviors",
             title=title,
             skillId="amzn1.ask.1p.routines.messaging",
+            queue_delay=queue_delay,
         )
 
     async def set_media(self, data: Dict[Text, Any]) -> None:
@@ -587,12 +622,14 @@ class AlexaAPI:
         """Rewind."""
         await self.set_media({"type": "RewindCommand"})
 
-    async def set_volume(self, volume: float) -> None:
+    async def set_volume(self, volume: float, queue_delay: float = 1.5) -> None:
         """Set volume."""
+        await self.send_sequence(
+            "Alexa.DeviceControls.Volume", value=volume * 100, queue_delay=queue_delay
+        )
         await self.set_media(
             {"type": "VolumeLevelCommand", "volumeLevel": volume * 100}
         )
-        await self.send_sequence("Alexa.DeviceControls.Volume", value=volume * 100)
 
     async def shuffle(self, setting: bool) -> None:
         """Shuffle.
@@ -749,13 +786,18 @@ class AlexaAPI:
         return None
 
     @_catch_all_exceptions
-    async def set_guard_state(self, entity_id: Text, state: Text) -> None:
+    async def set_guard_state(
+        self, entity_id: Text, state: Text, queue_delay: float = 1.5
+    ) -> None:
         """Set Guard state.
 
         Args:
         entity_id (Text): numeric ending of applianceId of RedRock Panel
         state (Text): AWAY, HOME
-
+        queue_delay (float, optional): The number of seconds to wait
+                                        for commands to queue together.
+                                        Defaults to 1.5.
+                                        Must be positive.
         Returns json
 
         """
@@ -767,6 +809,7 @@ class AlexaAPI:
             operationId="controlGuardState",
             state=state,
             skillId="amzn1.ask.skill.f71a9b50-e99a-4669-a226-d50ebb5e0830",
+            queue_delay=queue_delay,
         )
 
     @staticmethod
