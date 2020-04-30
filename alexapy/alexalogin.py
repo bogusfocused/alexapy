@@ -382,9 +382,7 @@ class AlexaLogin:
         # This commented block can be used to read a file directly to process.
         # import aiofiles
 
-        # async with aiofiles.open(
-        #     "/config/verificationneeded_options.html", "rb"
-        # ) as myfile:
+        # async with aiofiles.open("/config/anti-automation.html", "rb") as myfile:
         #     html = await myfile.read()
         site = await self._process_page(html, site)
         missing_params = self._populate_data(site, data)
@@ -487,6 +485,7 @@ class AlexaLogin:
         claimspicker_tag = soup.find("form", {"name": "claimspicker"})
         authselect_tag = soup.find("form", {"id": "auth-select-device-form"})
         verificationcode_tag = soup.find("form", {"action": "verify"})
+        verification_captcha_tag = soup.find("img", {"alt": "captcha"})
         links_tag = soup.findAll("a", href=True)
         form_tag = soup.find("form")
         missingcookies_tag = soup.find(id="ap_error_return_home")
@@ -576,6 +575,12 @@ class AlexaLogin:
             status["authselect_required"] = True
             status["authselect_message"] = authoptions_message
             self._data = self.get_inputs(soup, {"id": "auth-select-device-form"})
+        elif verification_captcha_tag is not None:
+            _LOGGER.debug("Verification captcha code requested:")
+            status["captcha_required"] = True
+            status["captcha_image_url"] = verification_captcha_tag.get("src")
+            status["verification_captcha_required"] = True
+            self._data = self.get_inputs(soup, {"action": "verify"})
         elif verificationcode_tag is not None:
             _LOGGER.debug("Verification code requested:")
             status["verificationcode_required"] = True
@@ -691,6 +696,8 @@ class AlexaLogin:
                 self._data["rememberMe"] = "true"
             if captcha is not None and "guess" in self._data:
                 self._data["guess"] = captcha
+            if captcha is not None and "cvf_captcha_input" in self._data:
+                self._data["cvf_captcha_input"] = captcha
             if securitycode is not None and "otpCode" in self._data:
                 self._data["otpCode"] = securitycode
                 self._data["rememberDevice"] = "true"
