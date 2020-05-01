@@ -671,19 +671,7 @@ class AlexaLogin:
         verificationcode: Optional[Text] = (
             None if "verificationcode" not in data else data["verificationcode"]
         )
-        _LOGGER.debug(
-            (
-                "Preparing post to %s Captcha: %s"
-                " SecurityCode: %s Claimsoption: %s "
-                " AuthSelectOption: %s VerificationCode: %s"
-            ),
-            site,
-            captcha,
-            securitycode,
-            claimsoption,
-            authopt,
-            verificationcode,
-        )
+        _LOGGER.debug(("Preparing post to %s data: %s"), site, data)
 
         #  add username and password to the data for post request
         #  check if there is an input field
