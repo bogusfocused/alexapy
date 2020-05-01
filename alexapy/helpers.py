@@ -15,6 +15,7 @@ from json.decoder import JSONDecodeError as JSONDecodeError2
 
 from aiohttp import ClientConnectionError
 
+from .const import EXCEPTION_TEMPLATE
 from .errors import AlexapyConnectionError, AlexapyLoginError
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,34 +65,30 @@ def _catch_all_exceptions(func):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        template = "An exception of type {0} occurred." " Arguments:\n{1!r}"
         try:
             return func(*args, **kwargs)
         except (ClientConnectionError, KeyError) as ex:
-            message = template.format(type(ex).__name__, ex.args)
             _LOGGER.error(
                 "%s.%s: A connection error occured: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
-                message,
+                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             raise AlexapyConnectionError
         except (JSONDecodeError, JSONDecodeError2) as ex:
-            message = template.format(type(ex).__name__, ex.args)
             _LOGGER.error(
                 "%s.%s: A login error occured: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
-                message,
+                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             raise AlexapyLoginError
         except Exception as ex:  # pylint: disable=broad-except
-            message = template.format(type(ex).__name__, ex.args)
             _LOGGER.error(
                 "%s.%s:An error occured accessing AlexaAPI: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
-                message,
+                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             return None
 
