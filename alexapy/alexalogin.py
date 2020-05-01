@@ -698,6 +698,7 @@ class AlexaLogin:
                 self._data["guess"] = captcha
             if captcha is not None and "cvf_captcha_input" in self._data:
                 self._data["cvf_captcha_input"] = captcha
+                self._data["cvf_captcha_captcha_action"] = "verifyCaptcha"
             if securitycode is not None and "otpCode" in self._data:
                 self._data["otpCode"] = securitycode
                 self._data["rememberDevice"] = "true"
