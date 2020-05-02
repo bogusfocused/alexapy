@@ -12,6 +12,7 @@ import logging
 from typing import (
     Callable,
     Dict,  # noqa pylint: disable=unused-import
+    List,
     Optional,
     Text,
     Tuple,
@@ -21,6 +22,7 @@ from typing import (
 import aiohttp
 from bs4 import BeautifulSoup
 
+from .const import EXCEPTION_TEMPLATE
 from .cookiejar import FixedCookieJar
 from .helpers import _catch_all_exceptions
 
@@ -66,7 +68,10 @@ class AlexaLogin:
         self._headers: Dict[Text, Text] = {}
         self._data: Optional[Dict[Text, Text]] = None
         self.status: Optional[Dict[Text, Union[Text, bool]]] = {}
-        self._cookiefile: Text = outputpath("{}.{}.pickle".format(prefix, email))
+        self._cookiefile: List[Text] = [
+            outputpath(".storage/{}.{}.pickle".format(prefix, email)),
+            outputpath("{}.{}.pickle".format(prefix, email)),
+        ]
         self._debugpost: Text = outputpath("{}{}post.html".format(prefix, email))
         self._debugget: Text = outputpath("{}{}get.html".format(prefix, email))
         self._lastreq: Optional[aiohttp.ClientResponse] = None
@@ -104,67 +109,94 @@ class AlexaLogin:
         # pylint: disable=import-outside-toplevel
         """Attempt to login after loading cookie."""
         import pickle
+        import os
         import aiofiles
         from requests.cookies import RequestsCookieJar
         from collections import defaultdict
 
         cookies: Optional[RequestsCookieJar] = None
         numcookies: int = 0
+        loaded: bool = False
         assert self._session is not None
         if self._cookiefile:
-            _LOGGER.debug(
-                "Trying to load pickled cookie from file %s", self._cookiefile
-            )
-            try:
-                async with aiofiles.open(self._cookiefile, "rb") as myfile:
-                    cookies = pickle.loads(await myfile.read())
-                    if self._debug:
-                        _LOGGER.debug("cookie loaded: %s %s", type(cookies), cookies)
-            except (OSError, EOFError, pickle.UnpicklingError) as ex:
-                template = "An exception of type {0} occurred." " Arguments:\n{1!r}"
-                message = template.format(type(ex).__name__, ex.args)
-                _LOGGER.debug(
-                    "Error loading pickled cookie from %s: %s",
-                    self._cookiefile,
-                    message,
-                )
-            # escape extra quote marks from Requests cookie
-            if isinstance(cookies, RequestsCookieJar):
-                _LOGGER.debug("Loading RequestsCookieJar")
-                cookies = cookies.get_dict()
-                assert self._cookies is not None
-                assert cookies is not None
-                for key, value in cookies.items():
-                    if self._debug:
-                        _LOGGER.debug('Key: "%s", Value: "%s"', key, value)
-                    self._cookies[str(key)] = value.strip('"')
-                numcookies = len(self._cookies)
-            elif isinstance(cookies, defaultdict):
-                _LOGGER.debug("Trying to load aiohttpCookieJar to session")
-                cookie_jar: aiohttp.CookieJar = self._session.cookie_jar
+            for cookiefile in self._cookiefile:
+                numcookies = 0
+                if not os.path.exists(cookiefile):
+                    continue
+                if loaded and cookiefile != self._cookiefile[0]:
+                    _LOGGER.debug("Deleting old cookiefile %s ", cookiefile)
+                    try:
+                        from aiofiles import os
+
+                        await os.remove(cookiefile)
+                    except (OSError, EOFError, TypeError, AttributeError) as ex:
+                        _LOGGER.debug(
+                            "Error deleting cookie: %s",
+                            EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                        )
+                _LOGGER.debug("Trying to load pickled cookie from file %s", cookiefile)
                 try:
-                    cookie_jar.load(self._cookiefile)
-                    self._prepare_cookies_from_session(self._url)
-                    numcookies = len(self._cookies)
-                except (OSError, EOFError, TypeError, AttributeError) as ex:
-                    template = "An exception of type {0} occurred." " Arguments:\n{1!r}"
-                    message = template.format(type(ex).__name__, ex.args)
+                    async with aiofiles.open(cookiefile, "rb") as myfile:
+                        cookies = pickle.loads(await myfile.read())
+                        if self._debug:
+                            _LOGGER.debug(
+                                "cookie loaded: %s %s", type(cookies), cookies
+                            )
+                except (OSError, EOFError, pickle.UnpicklingError) as ex:
                     _LOGGER.debug(
-                        "Error loading aiohttpcookie from %s: %s",
-                        self._cookiefile,
-                        message,
+                        "Error loading pickled cookie from %s: %s",
+                        cookiefile,
+                        EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
                     )
-                    # a cookie_jar.load error can corrupt the session
-                    # so we must recreate it
-                    self._create_session(True)
-            elif isinstance(cookies, dict):
-                _LOGGER.debug("Found dict cookie")
-                self._cookies = cookies
-                numcookies = len(self._cookies)
-            else:
-                _LOGGER.debug("Ignoring unknown file %s", type(cookies))
-            if numcookies:
-                _LOGGER.debug("Loaded %s cookies", numcookies)
+                # escape extra quote marks from Requests cookie
+                if isinstance(cookies, RequestsCookieJar):
+                    _LOGGER.debug("Loading RequestsCookieJar")
+                    cookies = cookies.get_dict()
+                    assert self._cookies is not None
+                    assert cookies is not None
+                    for key, value in cookies.items():
+                        if self._debug:
+                            _LOGGER.debug('Key: "%s", Value: "%s"', key, value)
+                        self._cookies[str(key)] = value.strip('"')
+                    numcookies = len(self._cookies)
+                elif isinstance(cookies, defaultdict):
+                    _LOGGER.debug("Trying to load aiohttpCookieJar to session")
+                    cookie_jar: aiohttp.CookieJar = self._session.cookie_jar
+                    try:
+                        cookie_jar.load(cookiefile)
+                        self._prepare_cookies_from_session(self._url)
+                        numcookies = len(self._cookies)
+                    except (OSError, EOFError, TypeError, AttributeError) as ex:
+                        _LOGGER.debug(
+                            "Error loading aiohttpcookie from %s: %s",
+                            cookiefile,
+                            EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                        )
+                        # a cookie_jar.load error can corrupt the session
+                        # so we must recreate it
+                        self._create_session(True)
+                elif isinstance(cookies, dict):
+                    _LOGGER.debug("Found dict cookie")
+                    self._cookies = cookies
+                    numcookies = len(self._cookies)
+                else:
+                    _LOGGER.debug("Ignoring unknown file %s", type(cookies))
+                if numcookies:
+                    _LOGGER.debug("Loaded %s cookies", numcookies)
+                    loaded = True
+                    if cookiefile != self._cookiefile[0]:
+                        _LOGGER.debug(
+                            "Migrating old cookiefile to %s ", self._cookiefile[0]
+                        )
+                        try:
+                            from aiofiles import os
+
+                            await os.rename(cookiefile, self._cookiefile[0])
+                        except (OSError, EOFError, TypeError, AttributeError) as ex:
+                            _LOGGER.debug(
+                                "Error renaming cookie: %s",
+                                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                            )
         await self.login(cookies=self._cookies)
 
     async def close(self) -> None:
@@ -190,14 +222,17 @@ class AlexaLogin:
         self._create_session()
         import os
 
-        if (self._cookiefile) and os.path.exists(self._cookiefile):
-            try:
-                _LOGGER.debug("Trying to delete cookie file %s", self._cookiefile)
-                os.remove(self._cookiefile)
-            except OSError as ex:
-                template = "An exception of type {0} occurred." " Arguments:\n{1!r}"
-                message = template.format(type(ex).__name__, ex.args)
-                _LOGGER.debug("Error deleting cookie %s: %s", self._cookiefile, message)
+        for cookiefile in self._cookiefile:
+            if (cookiefile) and os.path.exists(cookiefile):
+                try:
+                    _LOGGER.debug("Trying to delete cookie file %s", cookiefile)
+                    os.remove(cookiefile)
+                except OSError as ex:
+                    _LOGGER.debug(
+                        "Error deleting cookie %s: %s",
+                        cookiefile,
+                        EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                    )
 
     @classmethod
     def get_inputs(cls, soup: BeautifulSoup, searchfield=None) -> Dict[str, str]:
@@ -246,9 +281,10 @@ class AlexaLogin:
             json = await get_resp.json()
             email = json["authentication"]["customerEmail"]
         except (JSONDecodeError, SimpleJSONDecodeError, ContentTypeError) as ex:
-            template = "An exception of type {0} occurred." " Arguments:\n{1!r}"
-            message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.debug("Not logged in: %s", message)
+            _LOGGER.debug(
+                "Not logged in: %s",
+                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+            )
             return False
         if email.lower() == self._email.lower():
             _LOGGER.debug("Logged in as %s", email)
@@ -382,9 +418,7 @@ class AlexaLogin:
         # This commented block can be used to read a file directly to process.
         # import aiofiles
 
-        # async with aiofiles.open(
-        #     "/config/verificationneeded_options.html", "rb"
-        # ) as myfile:
+        # async with aiofiles.open("/config/anti-automation.html", "rb") as myfile:
         #     html = await myfile.read()
         site = await self._process_page(html, site)
         missing_params = self._populate_data(site, data)
@@ -487,6 +521,7 @@ class AlexaLogin:
         claimspicker_tag = soup.find("form", {"name": "claimspicker"})
         authselect_tag = soup.find("form", {"id": "auth-select-device-form"})
         verificationcode_tag = soup.find("form", {"action": "verify"})
+        verification_captcha_tag = soup.find("img", {"alt": "captcha"})
         links_tag = soup.findAll("a", href=True)
         form_tag = soup.find("form")
         missingcookies_tag = soup.find(id="ap_error_return_home")
@@ -576,6 +611,12 @@ class AlexaLogin:
             status["authselect_required"] = True
             status["authselect_message"] = authoptions_message
             self._data = self.get_inputs(soup, {"id": "auth-select-device-form"})
+        elif verification_captcha_tag is not None:
+            _LOGGER.debug("Verification captcha code requested:")
+            status["captcha_required"] = True
+            status["captcha_image_url"] = verification_captcha_tag.get("src")
+            status["verification_captcha_required"] = True
+            self._data = self.get_inputs(soup, {"action": "verify"})
         elif verificationcode_tag is not None:
             _LOGGER.debug("Verification code requested:")
             status["verificationcode_required"] = True
@@ -591,24 +632,31 @@ class AlexaLogin:
         else:
             _LOGGER.debug("Captcha/2FA not requested; confirming login.")
             if await self.test_loggedin():
-                _LOGGER.debug("Login confirmed; saving cookie to %s", self._cookiefile)
+                _LOGGER.debug(
+                    "Login confirmed; saving cookie to %s", self._cookiefile[0]
+                )
                 status["login_successful"] = True
                 self._prepare_cookies_from_session(self._url)
                 assert self._session is not None
                 if self._debug:
                     _LOGGER.debug("Saving cookie: %s", self._print_session_cookies())
-                try:
-                    cookie_jar = self._session.cookie_jar
-                    assert isinstance(cookie_jar, aiohttp.CookieJar)
-                    cookie_jar.save(self._cookiefile)
-                except OSError as ex:
-                    template = "An exception of type {0} occurred." " Arguments:\n{1!r}"
-                    message = template.format(type(ex).__name__, ex.args)
-                    _LOGGER.debug(
-                        "Error saving pickled cookie to %s: %s",
-                        self._cookiefile,
-                        message,
-                    )
+                for cookiefile in self._cookiefile:
+                    try:
+                        import os
+
+                        if cookiefile == self._cookiefile[0]:
+                            cookie_jar = self._session.cookie_jar
+                            assert isinstance(cookie_jar, aiohttp.CookieJar)
+                            cookie_jar.save(self._cookiefile[0])
+                        elif (cookiefile) and os.path.exists(cookiefile):
+                            _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
+                            os.remove(cookiefile)
+                    except OSError as ex:
+                        _LOGGER.debug(
+                            "Error saving pickled cookie to %s: %s",
+                            self._cookiefile[0],
+                            EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                        )
                 #  remove extraneous Content-Type to avoid 500 errors
                 self._headers.pop("Content-Type", None)
 
@@ -666,19 +714,7 @@ class AlexaLogin:
         verificationcode: Optional[Text] = (
             None if "verificationcode" not in data else data["verificationcode"]
         )
-        _LOGGER.debug(
-            (
-                "Preparing post to %s Captcha: %s"
-                " SecurityCode: %s Claimsoption: %s "
-                " AuthSelectOption: %s VerificationCode: %s"
-            ),
-            site,
-            captcha,
-            securitycode,
-            claimsoption,
-            authopt,
-            verificationcode,
-        )
+        _LOGGER.debug(("Preparing post to %s data: %s"), site, data)
 
         #  add username and password to the data for post request
         #  check if there is an input field
@@ -691,6 +727,9 @@ class AlexaLogin:
                 self._data["rememberMe"] = "true"
             if captcha is not None and "guess" in self._data:
                 self._data["guess"] = captcha
+            if captcha is not None and "cvf_captcha_input" in self._data:
+                self._data["cvf_captcha_input"] = captcha
+                self._data["cvf_captcha_captcha_action"] = "verifyCaptcha"
             if securitycode is not None and "otpCode" in self._data:
                 self._data["otpCode"] = securitycode
                 self._data["rememberDevice"] = "true"
