@@ -89,7 +89,9 @@ class FixedCookieJar(CookieJar):
             # Don't accept cookies from IPs
             return
 
-        if isinstance(cookies, Mapping):
+        if isinstance(  # pylint: disable=isinstance-second-argument-not-valid-type
+            cookies, Mapping,
+        ):
             cookies = cookies.items()  # type: ignore
 
         for name, cookie in cookies:
