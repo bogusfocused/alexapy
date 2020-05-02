@@ -46,7 +46,7 @@ bump_and_publish:
     - git config --global user.name "semantic-release (via GitLabCI)"
     - git config --global user.email "semantic-release@GitLabCI"
     - pip install python-semantic-release
-    - semantic-release version
+    - semantic-release publish
     - poetry publish --build 
   artifacts:
     paths:
