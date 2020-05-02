@@ -8,4 +8,4 @@ For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
 
-EXCEPTION_TEMPLATE = "An exception of type {0} occurred." " Arguments:\n{1!r}"
+EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"
