@@ -301,6 +301,38 @@ class AlexaAPI:
         }
         await self.run_behavior(node_data, queue_delay=queue_delay)
 
+    async def run_skill(self, skill_id Text, queue_delay: float = 0) -> None:
+         """Run Alexa skill.
+
+        This allows running of defined Alexa skill.
+
+        Args:
+            skill_id (string): The full skill id.
+            queue_delay (float, optional): The number of seconds to wait
+                                        for commands to queue together.
+                                        Defaults to 1.5.
+                                        Must be positive.
+
+        """
+        operation_payload = {
+            "targetDevice": {
+                "deviceType": self._device._device_type,
+                "deviceSerialNumber": self._device.unique_id,
+             },
+            "locale": (self._device._locale if self._device._locale else "en-US"),
+            "customerId": self._device._device_owner_customer_id,
+        }
+        node_data = {
+            "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
+            "type": "Alexa.Operation.SkillConnections.Launch",
+            "operationPayload": operation_payload,
+            "connectionRequest": {
+                "uri": "connection://AMAZON.Launch/"+skill_id,
+                "input": {},
+            }
+        }
+        await self.run_behavior(node_data, queue_delay=queue_delay)
+
     async def run_routine(self, utterance: Text, queue_delay: float = 1.5) -> None:
         """Run Alexa automation routine.
 
