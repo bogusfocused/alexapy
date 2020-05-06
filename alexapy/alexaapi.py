@@ -321,15 +321,15 @@ class AlexaAPI:
             },
             "locale": (self._device._locale if self._device._locale else "en-US"),
             "customerId": self._device._device_owner_customer_id,
+            "connectionRequest": {
+                "uri": "connection://AMAZON.Launch/" + skill_id,
+                "input": {},
+            },
         }
         node_data = {
             "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
             "type": "Alexa.Operation.SkillConnections.Launch",
             "operationPayload": operation_payload,
-            "connectionRequest": {
-                "uri": "connection://AMAZON.Launch/" + skill_id,
-                "input": {},
-            },
         }
         await self.run_behavior(node_data, queue_delay=queue_delay)
 
