@@ -75,8 +75,8 @@ publish:
     - git config --global user.name "semantic-release (via GitLabCI)"
     - git config --global user.email "semantic-release@GitLabCI"
     - poetry config http-basic.pypi $PYPI_USERNAME $PYPI_PASSWORD
-    - poetry publish
-    - git push origin dev
+    - poetry publish --build
+    - git push origin HEAD:dev
   artifacts:
     paths:
       - dist
