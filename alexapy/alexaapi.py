@@ -659,9 +659,6 @@ class AlexaAPI:
         await self.send_sequence(
             "Alexa.DeviceControls.Volume", value=volume * 100, queue_delay=queue_delay
         )
-        await self.set_media(
-            {"type": "VolumeLevelCommand", "volumeLevel": volume * 100}
-        )
 
     async def shuffle(self, setting: bool) -> None:
         """Shuffle.

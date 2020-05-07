@@ -221,12 +221,13 @@ class AlexaLogin:
         self._site = None
         self._create_session()
         import os
+        from aiofiles import os as aioos
 
         for cookiefile in self._cookiefile:
             if (cookiefile) and os.path.exists(cookiefile):
                 try:
                     _LOGGER.debug("Trying to delete cookie file %s", cookiefile)
-                    os.remove(cookiefile)
+                    await aioos.remove(cookiefile)
                 except OSError as ex:
                     _LOGGER.debug(
                         "Error deleting cookie %s: %s",
@@ -643,6 +644,7 @@ class AlexaLogin:
                 for cookiefile in self._cookiefile:
                     try:
                         import os
+                        from aiofiles import os as aioos
 
                         if cookiefile == self._cookiefile[0]:
                             cookie_jar = self._session.cookie_jar
@@ -650,7 +652,7 @@ class AlexaLogin:
                             cookie_jar.save(self._cookiefile[0])
                         elif (cookiefile) and os.path.exists(cookiefile):
                             _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
-                            os.remove(cookiefile)
+                            await aioos.remove(cookiefile)
                     except OSError as ex:
                         _LOGGER.debug(
                             "Error saving pickled cookie to %s: %s",
