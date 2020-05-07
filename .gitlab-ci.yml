@@ -9,11 +9,11 @@ cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
     - $PIP_CACHE_DIR
-    - .venv/
 
 stages:
   - test
   - stage
+  - build
   - deploy
 
 before_script:
@@ -36,7 +36,23 @@ check_vulns:
   rules:
     - allow_failure: true
 
-bump_and_publish:
+bump:
+  stage: build
+  variables:
+    GL_TOKEN: $GL_TOKEN
+  script:
+    - git config --global user.name "semantic-release (via GitLabCI)"
+    - git config --global user.email "semantic-release@GitLabCI"
+    - pip install python-semantic-release
+    - semantic-release publish
+    - poetry build
+  artifacts:
+    paths:
+      - dist
+  only:
+    - master@keatontaylor/alexapy
+
+publish:
   stage: deploy
   variables:
     PYPI_USERNAME: $PRODUCTION_USERNAME
@@ -45,10 +61,9 @@ bump_and_publish:
   script:
     - git config --global user.name "semantic-release (via GitLabCI)"
     - git config --global user.email "semantic-release@GitLabCI"
-    - pip install python-semantic-release
     - poetry config http-basic.pypi $PYPI_USERNAME $PYPI_PASSWORD
-    - semantic-release publish
-    - poetry publish --build
+    - poetry publish
+    - git push origin dev
   artifacts:
     paths:
       - dist
