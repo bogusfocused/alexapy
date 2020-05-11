@@ -64,9 +64,9 @@ def _catch_all_exceptions(func):
     import functools
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         try:
-            return func(*args, **kwargs)
+            return await func(*args, **kwargs)
         except (ClientConnectionError, KeyError) as ex:
             _LOGGER.error(
                 "%s.%s: A connection error occured: %s",
