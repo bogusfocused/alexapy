@@ -14,7 +14,6 @@ stages:
   - test
   - stage
   - build
-  - deploy
 
 before_script:
   - python -V
@@ -30,7 +29,6 @@ lint:
     - make lint
   rules:
     - changes: # Will include the job and set to when:manual if any of the follow paths match a modified file.
-        - poetry.lock
         - alexapy/*
         - pylintrc
         - setup.cfg
@@ -49,24 +47,8 @@ check_vulns:
         - pyproject.toml
     - allow_failure: true
 
-bump:
+bump_and_publish:
   stage: build
-  variables:
-    GL_TOKEN: $GL_TOKEN
-  script:
-    - git config --global user.name "semantic-release (via GitLabCI)"
-    - git config --global user.email "semantic-release@GitLabCI"
-    - pip install python-semantic-release
-    - semantic-release publish
-    - poetry build
-  artifacts:
-    paths:
-      - dist
-  only:
-    - master@keatontaylor/alexapy
-
-publish:
-  stage: deploy
   variables:
     PYPI_USERNAME: $PRODUCTION_USERNAME
     PYPI_PASSWORD: $PRODUCTION_PASSWORD
@@ -74,9 +56,10 @@ publish:
   script:
     - git config --global user.name "semantic-release (via GitLabCI)"
     - git config --global user.email "semantic-release@GitLabCI"
+    - pip install python-semantic-release
+    - semantic-release publish
     - poetry config http-basic.pypi $PYPI_USERNAME $PYPI_PASSWORD
     - poetry publish --build
-    - git push origin HEAD:dev
   artifacts:
     paths:
       - dist
