@@ -381,7 +381,8 @@ class AlexaLogin:
             site: Text = self._prefix + self._url
         else:
             site = self._site
-        assert self._session is not None
+        if not self._session:
+            self._create_session()
         #  This will process links which is used for debug only to force going
         #  to other links.  Warning, chrome will cache any link parameters
         #  breaking the configuration flow until refresh on browser.
