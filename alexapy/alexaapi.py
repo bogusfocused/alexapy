@@ -684,7 +684,7 @@ class AlexaAPI:
             + self._device._device_type
             + "&screenWidth=2560"
         )
-        return await response.json(content_type=None)
+        return await response.json(content_type=None) if response else None
 
     @_catch_all_exceptions
     async def set_dnd_state(self, state: bool) -> None:
@@ -703,10 +703,9 @@ class AlexaAPI:
         }
         _LOGGER.debug("Setting DND state: %s data: %s", state, json.dumps(data))
         response = await self._put_request("/api/dnd/status", data=data)
-        success = data == await response.json(content_type=None)
-        _LOGGER.debug(
-            "Success: %s Response: %s", success, await response.json(content_type=None)
-        )
+        response_json = await response.json(content_type=None) if response else None
+        success = data == response_json
+        _LOGGER.debug("Success: %s Response: %s", success, response_json)
         return success
 
     @staticmethod
@@ -716,7 +715,7 @@ class AlexaAPI:
         response = await AlexaAPI._static_request(
             "get", login, "/api/bluetooth", query={"cached": "false"}
         )
-        return await response.json(content_type=None)
+        return await response.json(content_type=None) if response else None
 
     async def set_bluetooth(self, mac: Text) -> None:
         """Pair with bluetooth device with mac address."""
@@ -745,9 +744,9 @@ class AlexaAPI:
         response = await AlexaAPI._static_request(
             "get", login, "/api/devices-v2/device", query=None
         )
-        AlexaAPI.devices[login.email] = (await response.json(content_type=None))[
-            "devices"
-        ]
+        AlexaAPI.devices[login.email] = (
+            (await response.json(content_type=None))["devices"] if response else None
+        )
         return AlexaAPI.devices[login.email]
 
     @staticmethod
@@ -757,7 +756,11 @@ class AlexaAPI:
         response = await AlexaAPI._static_request(
             "get", login, "/api/bootstrap", query=None
         )
-        return (await response.json(content_type=None))["authentication"]
+        return (
+            (await response.json(content_type=None))["authentication"]
+            if response
+            else None
+        )
 
     @staticmethod
     @_catch_all_exceptions
@@ -769,7 +772,9 @@ class AlexaAPI:
             "/api/activities",
             query={"startTime": "", "size": items, "offset": 1},
         )
-        return (await response.json(content_type=None))["activities"]
+        return (
+            (await response.json(content_type=None))["activities"] if response else None
+        )
 
     @staticmethod
     @_catch_all_exceptions
@@ -778,7 +783,7 @@ class AlexaAPI:
         response = await AlexaAPI._static_request(
             "get", login, "/api/device-preferences", query={}
         )
-        return await response.json(content_type=None)
+        return await response.json(content_type=None) if response else None
 
     @staticmethod
     @_catch_all_exceptions
@@ -787,7 +792,7 @@ class AlexaAPI:
         response = await AlexaAPI._static_request(
             "get", login, "/api/behaviors/automations", query={"limit": items}
         )
-        return await response.json(content_type=None)
+        return await response.json(content_type=None) if response else None
 
     @staticmethod
     async def get_last_device_serial(
@@ -857,7 +862,7 @@ class AlexaAPI:
         response = await AlexaAPI._static_request(
             "post", login, "/api/phoenix/state", data=data
         )
-        result = await response.json(content_type=None)
+        result = await response.json(content_type=None) if response else None
         _LOGGER.debug("get_guard_state response: %s", result)
         return result
 
@@ -891,10 +896,10 @@ class AlexaAPI:
         )
         _LOGGER.debug(
             "set_guard_state response: %s for data: %s ",
-            await response.json(content_type=None),
+            await response.json(content_type=None) if response else None,
             json.dumps(data),
         )
-        return await response.json(content_type=None)
+        return await response.json(content_type=None) if response else None
 
     @staticmethod
     @_catch_all_exceptions
@@ -910,7 +915,11 @@ class AlexaAPI:
         response = await AlexaAPI._static_request("get", login, "/api/phoenix")
         # _LOGGER.debug("Response: %s",
         #               await response.json(content_type=None))
-        return json.loads((await response.json(content_type=None))["networkDetail"])
+        return (
+            json.loads((await response.json(content_type=None))["networkDetail"])
+            if response
+            else None
+        )
 
     @staticmethod
     @_catch_all_exceptions
@@ -926,7 +935,11 @@ class AlexaAPI:
         response = await AlexaAPI._static_request("get", login, "/api/notifications")
         # _LOGGER.debug("Response: %s",
         #               response.json(content_type=None))
-        return (await response.json(content_type=None))["notifications"]
+        return (
+            (await response.json(content_type=None))["notifications"]
+            if response
+            else None
+        )
 
     @staticmethod
     @_catch_all_exceptions
@@ -945,7 +958,7 @@ class AlexaAPI:
         )
         # _LOGGER.debug("Response: %s",
         #               response.json(content_type=None))
-        return await response.json(content_type=None)
+        return await response.json(content_type=None) if response else None
 
     @staticmethod
     @_catch_all_exceptions
@@ -961,7 +974,7 @@ class AlexaAPI:
         response = await AlexaAPI._static_request(
             "get", login, "/api/dnd/device-status-list",
         )
-        return await response.json(content_type=None)
+        return await response.json(content_type=None) if response else None
 
     @staticmethod
     @_catch_all_exceptions
@@ -974,7 +987,9 @@ class AlexaAPI:
         import urllib.parse  # pylint: disable=import-outside-toplevel
 
         completed = True
-        response_json = (await response.json(content_type=None))["activities"]
+        response_json = (
+            (await response.json(content_type=None))["activities"] if response else None
+        )
         if not response_json:
             _LOGGER.debug("%s:No history to delete.", hide_email(email))
             return True
