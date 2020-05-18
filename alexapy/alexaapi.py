@@ -287,8 +287,12 @@ class AlexaAPI:
 
         """
         operation_payload = {
-            "deviceType": self._device._device_type,
-            "deviceSerialNumber": self._device.unique_id,
+            "devices": [
+                {
+                    "deviceType": self._device._device_type,
+                    "deviceSerialNumber": self._device.unique_id,
+                }
+            ],
             "locale": (self._device._locale if self._device._locale else "en-US"),
             "customerId": self._device._device_owner_customer_id,
         }
