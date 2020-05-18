@@ -441,6 +441,41 @@ class AlexaAPI:
             queue_delay=queue_delay,
         )
 
+    async def stop(
+        self,
+        customer_id: Text = None,
+        queue_delay: float = 1.5,
+        all_devices: bool = False,
+    ) -> None:
+        """Stop device playback.
+
+        Keyword Arguments:
+            customer_id {Text} -- CustomerId issuing command (default: {None})
+            queue_delay {float} -- The number of seconds to wait
+                                   for commands to queue together.
+                                   Must be positive.
+                                   (default: {1.5})
+            all_devices {bool} -- Whether all devices should be stopped (default: {False})
+
+        """
+        kwargs = {}
+
+        if all_devices:
+            kwargs["devices"] = (
+                {
+                    "deviceType": "ALEXA_ALL_DEVICE_TYPE",
+                    "deviceSerialNumber": "ALEXA_ALL_DSN",
+                },
+            )
+
+        await self.send_sequence(
+            "Alexa.DeviceControls.Stop",
+            skillId="amzn1.ask.1p.alexadevicecontrols",
+            customerId=customer_id,
+            queue_delay=queue_delay,
+            **kwargs
+        )
+
     def process_targets(
         self, targets: Optional[List[Text]] = None
     ) -> List[Dict[Text, Text]]:
