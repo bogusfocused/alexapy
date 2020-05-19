@@ -117,7 +117,8 @@ class AlexaLogin:
         cookies: Optional[RequestsCookieJar] = None
         numcookies: int = 0
         loaded: bool = False
-        assert self._session is not None
+        if not self._session:
+            self._create_session()
         if self._cookiefile:
             for cookiefile in self._cookiefile:
                 numcookies = 0
@@ -269,7 +270,8 @@ class AlexaLogin:
             _LOGGER.debug("Cookies: %s", cookies)
             _LOGGER.debug("Session Cookies:\n%s", self._print_session_cookies())
             _LOGGER.debug("Header: %s", dumps(self._headers))
-        assert self._session is not None
+        if not self._session:
+            self._create_session()
         get_resp = await self._session.get(
             self._prefix + self._url + "/api/bootstrap", cookies=cookies, ssl=self._ssl
         )
@@ -321,7 +323,8 @@ class AlexaLogin:
 
         This should only be needed to run after a succesful login.
         """
-        assert self._session is not None
+        if not self._session:
+            self._create_session()
         cookie_jar = self._session.cookie_jar
         if self._cookies is None:
             self._cookies = {}
@@ -346,7 +349,8 @@ class AlexaLogin:
 
     def _print_session_cookies(self) -> Text:
         result: Text = ""
-        assert self._session is not None
+        if not self._session:
+            self._create_session()
         for cookie in self._session.cookie_jar:
             result += "{}: expires:{} max-age:{} {}={}\n".format(
                 cookie["domain"],
@@ -639,7 +643,8 @@ class AlexaLogin:
                 )
                 status["login_successful"] = True
                 self._prepare_cookies_from_session(self._url)
-                assert self._session is not None
+                if not self._session:
+                    self._create_session()
                 if self._debug:
                     _LOGGER.debug("Saving cookie: %s", self._print_session_cookies())
                 for cookiefile in self._cookiefile:

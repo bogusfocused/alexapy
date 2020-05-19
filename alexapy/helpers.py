@@ -90,6 +90,7 @@ def _catch_all_exceptions(func):
                 func.__name__,
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
-            return None
+            raise
+            # return None
 
     return wrapper
