@@ -287,17 +287,16 @@ class AlexaAPI:
 
         """
         operation_payload = {
-            "devices": [
-                {
-                    "deviceType": self._device._device_type,
-                    "deviceSerialNumber": self._device.unique_id,
-                }
-            ],
+            "deviceType": self._device._device_type,
+            "deviceSerialNumber": self._device.unique_id,
             "locale": (self._device._locale if self._device._locale else "en-US"),
             "customerId": self._device._device_owner_customer_id,
         }
         if kwargs is not None:
             operation_payload.update(kwargs)
+            if kwargs.get("devices"):
+                operation_payload.pop("deviceType")
+                operation_payload.pop("deviceSerialNumber")
         node_data = {
             "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
             "type": sequence,
@@ -467,6 +466,13 @@ class AlexaAPI:
                     "deviceSerialNumber": "ALEXA_ALL_DSN",
                 },
             )
+        else:
+            kwargs["devices"] = [
+                {
+                    "deviceSerialNumber": self._device.unique_id,
+                    "deviceType": self._device._device_type,
+                },
+            ]
 
         await self.send_sequence(
             "Alexa.DeviceControls.Stop",
