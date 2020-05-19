@@ -287,17 +287,16 @@ class AlexaAPI:
 
         """
         operation_payload = {
-            "devices": [
-                {
-                    "deviceType": self._device._device_type,
-                    "deviceSerialNumber": self._device.unique_id,
-                }
-            ],
+            "deviceType": self._device._device_type,
+            "deviceSerialNumber": self._device.unique_id,
             "locale": (self._device._locale if self._device._locale else "en-US"),
             "customerId": self._device._device_owner_customer_id,
         }
         if kwargs is not None:
             operation_payload.update(kwargs)
+            if kwargs.get("devices"):
+                operation_payload.pop("deviceType")
+                operation_payload.pop("deviceSerialNumber")
         node_data = {
             "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
             "type": sequence,
@@ -467,6 +466,13 @@ class AlexaAPI:
                     "deviceSerialNumber": "ALEXA_ALL_DSN",
                 },
             )
+        else:
+            kwargs["devices"] = [
+                {
+                    "deviceSerialNumber": self._device.unique_id,
+                    "deviceType": self._device._device_type,
+                },
+            ]
 
         await self.send_sequence(
             "Alexa.DeviceControls.Stop",
@@ -533,7 +539,9 @@ class AlexaAPI:
         should be used instead.
 
         Args:
-        message (string): The message to speak
+        message (string): The message to speak. For canned messages, the message
+                            must start with `alexa.cannedtts.speak` as discovered
+                            in the routines.
         customer_id (string): CustomerId to use for authorization. When none
                              specified this defaults to the device owner. Used
                              with households where others may have their own
@@ -551,15 +559,27 @@ class AlexaAPI:
                                           Must be positive.
 
         """
-        target = {"customerId": customer_id, "devices": self.process_targets(targets)}
-        await self.send_sequence(
-            "Alexa.Speak",
-            customerId=customer_id,
-            textToSpeak=message,
-            target=target,
-            skillId="amzn1.ask.1p.saysomething",
-            queue_delay=queue_delay,
-        )
+        if message.startswith("alexa.cannedtts.speak"):
+            await self.send_sequence(
+                "Alexa.CannedTts.Speak",
+                customerId=customer_id,
+                cannedTtsStringId=message,
+                skillId="amzn1.ask.1p.saysomething",
+                queue_delay=queue_delay,
+            )
+        else:
+            target = {
+                "customerId": customer_id,
+                "devices": self.process_targets(targets),
+            }
+            await self.send_sequence(
+                "Alexa.Speak",
+                customerId=customer_id,
+                textToSpeak=message,
+                target=target,
+                skillId="amzn1.ask.1p.saysomething",
+                queue_delay=queue_delay,
+            )
 
     async def send_announcement(
         self,
