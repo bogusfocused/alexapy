@@ -539,7 +539,9 @@ class AlexaAPI:
         should be used instead.
 
         Args:
-        message (string): The message to speak
+        message (string): The message to speak. For canned messages, the message
+                            must start with `alexa.cannedtts.speak` as discovered
+                            in the routines.
         customer_id (string): CustomerId to use for authorization. When none
                              specified this defaults to the device owner. Used
                              with households where others may have their own
@@ -557,15 +559,27 @@ class AlexaAPI:
                                           Must be positive.
 
         """
-        target = {"customerId": customer_id, "devices": self.process_targets(targets)}
-        await self.send_sequence(
-            "Alexa.Speak",
-            customerId=customer_id,
-            textToSpeak=message,
-            target=target,
-            skillId="amzn1.ask.1p.saysomething",
-            queue_delay=queue_delay,
-        )
+        if message.startswith("alexa.cannedtts.speak"):
+            await self.send_sequence(
+                "Alexa.CannedTts.Speak",
+                customerId=customer_id,
+                cannedTtsStringId=message,
+                skillId="amzn1.ask.1p.saysomething",
+                queue_delay=queue_delay,
+            )
+        else:
+            target = {
+                "customerId": customer_id,
+                "devices": self.process_targets(targets),
+            }
+            await self.send_sequence(
+                "Alexa.Speak",
+                customerId=customer_id,
+                textToSpeak=message,
+                target=target,
+                skillId="amzn1.ask.1p.saysomething",
+                queue_delay=queue_delay,
+            )
 
     async def send_announcement(
         self,
