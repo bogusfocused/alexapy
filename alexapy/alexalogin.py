@@ -742,11 +742,21 @@ class AlexaLogin:
                 self._data["otpCode"] = securitycode
                 self._data["rememberDevice"] = "true"
             if claimsoption is not None and "option" in self._data:
-                assert self._options is not None
-                self._data["option"] = self._options[str(claimsoption)]
+                try:
+                    self._data["option"] = self._options[str(claimsoption)]
+                except KeyError:
+                    _LOGGER.debug(
+                        "Selected claimspicker option %s not in %s",
+                        str(claimsoption),
+                        self._options,
+                    )
             if authopt is not None and "otpDeviceContext" in self._data:
-                assert self._options is not None
-                self._data["otpDeviceContext"] = self._options[str(authopt)]
+                try:
+                    self._data["otpDeviceContext"] = self._options[str(authopt)]
+                except KeyError:
+                    _LOGGER.debug(
+                        "Selected OTP option %s not in %s", str(authopt), self._options,
+                    )
             if verificationcode is not None and "code" in self._data:
                 self._data["code"] = verificationcode
             self._data.pop("", None)  # remove '' key
