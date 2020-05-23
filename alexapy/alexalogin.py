@@ -431,25 +431,25 @@ class AlexaLogin:
         if self._debug:
             from json import dumps  # pylint: disable=import-outside-toplevel
 
-            _LOGGER.debug("Missing params: %s", missing_params)
+            if missing_params:
+                _LOGGER.debug("WARNING: Detected missing params: %s", missing_params)
             _LOGGER.debug("Session Cookies:\n%s", self._print_session_cookies())
             _LOGGER.debug("Submit Form Data: %s", dumps(self._data))
             _LOGGER.debug("Header: %s", dumps(self._headers))
 
         # submit post request with username/password and other needed info
-        if not missing_params:
-            post_resp = await self._session.post(
-                site, data=self._data, headers=self._headers, ssl=self._ssl
-            )
-            # headers need to be submitted to have the referer
-            if self._debug:
-                import aiofiles
+        post_resp = await self._session.post(
+            site, data=self._data, headers=self._headers, ssl=self._ssl
+        )
+        # headers need to be submitted to have the referer
+        if self._debug:
+            import aiofiles
 
-                async with aiofiles.open(self._debugpost, mode="wb") as localfile:
-                    await localfile.write(await post_resp.read())
-            self._lastreq = post_resp
-            site = await self._process_resp(post_resp)
-            self._site = await self._process_page(await post_resp.text(), site)
+            async with aiofiles.open(self._debugpost, mode="wb") as localfile:
+                await localfile.write(await post_resp.read())
+        self._lastreq = post_resp
+        site = await self._process_resp(post_resp)
+        self._site = await self._process_page(await post_resp.text(), site)
 
     async def _process_resp(self, resp) -> Text:
         if resp.history:
@@ -742,11 +742,21 @@ class AlexaLogin:
                 self._data["otpCode"] = securitycode
                 self._data["rememberDevice"] = "true"
             if claimsoption is not None and "option" in self._data:
-                assert self._options is not None
-                self._data["option"] = self._options[str(claimsoption)]
+                try:
+                    self._data["option"] = self._options[str(claimsoption)]
+                except KeyError:
+                    _LOGGER.debug(
+                        "Selected claimspicker option %s not in %s",
+                        str(claimsoption),
+                        self._options,
+                    )
             if authopt is not None and "otpDeviceContext" in self._data:
-                assert self._options is not None
-                self._data["otpDeviceContext"] = self._options[str(authopt)]
+                try:
+                    self._data["otpDeviceContext"] = self._options[str(authopt)]
+                except KeyError:
+                    _LOGGER.debug(
+                        "Selected OTP option %s not in %s", str(authopt), self._options,
+                    )
             if verificationcode is not None and "code" in self._data:
                 self._data["code"] = verificationcode
             self._data.pop("", None)  # remove '' key
