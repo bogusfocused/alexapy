@@ -10,8 +10,8 @@ For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
 import logging
+from asyncio import CancelledError
 from json import JSONDecodeError
-from json.decoder import JSONDecodeError as JSONDecodeError2
 
 from aiohttp import ClientConnectionError
 
@@ -69,25 +69,41 @@ def _catch_all_exceptions(func):
             return await func(*args, **kwargs)
         except (ClientConnectionError, KeyError) as ex:
             _LOGGER.error(
-                "%s.%s: A connection error occured: %s",
+                "%s.%s(%s, %s): A connection error occured: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
+                args,
+                kwargs,
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             raise AlexapyConnectionError
-        except (JSONDecodeError, JSONDecodeError2) as ex:
+        except (JSONDecodeError) as ex:
             _LOGGER.error(
-                "%s.%s: A login error occured: %s",
+                "%s.%s(%s, %s): A login error occured: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
+                args,
+                kwargs,
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             raise AlexapyLoginError
-        except Exception as ex:  # pylint: disable=broad-except
-            _LOGGER.error(
-                "%s.%s:An error occured accessing AlexaAPI: %s",
+        except CancelledError as ex:  # pylint: disable=broad-except
+            _LOGGER.warning(
+                "%s.%s(%s, %s): Timeout error occured accessing AlexaAPI: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
+                args,
+                kwargs,
+                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+            )
+            return None
+        except Exception as ex:  # pylint: disable=broad-except
+            _LOGGER.error(
+                "%s.%s(%s, %s): An error occured accessing AlexaAPI: %s",
+                func.__module__[func.__module__.find(".") + 1 :],
+                func.__name__,
+                args,
+                kwargs,
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             raise
