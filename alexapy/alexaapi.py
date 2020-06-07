@@ -10,24 +10,18 @@ https://gitlab.com/keatontaylor/alexapy
 import asyncio
 import json
 import logging
-from typing import (
-    Any,
-    Dict,
-    List,  # noqa pylint: disable=unused-import
-    Optional,
-    Text,
-)
+from typing import Any, Dict, Optional, Text
+from typing import List  # noqa pylint: disable=unused-import
 
-from aiohttp import ClientResponse
-from yarl import URL
-
+from aiohttp import ClientConnectionError, ClientResponse
 import backoff
+from yarl import URL
 
 from .alexalogin import AlexaLogin
 from .errors import (
+    AlexapyConnectionError,
     AlexapyLoginError,
     AlexapyTooManyRequestsError,
-    AlexapyConnectionError,
 )
 from .helpers import _catch_all_exceptions, hide_email
 
@@ -70,12 +64,11 @@ class AlexaAPI:
 
     @backoff.on_exception(
         backoff.expo,
-        (AlexapyTooManyRequestsError, AlexapyConnectionError),
+        (AlexapyTooManyRequestsError, AlexapyConnectionError, ClientConnectionError),
         max_time=60,
         max_tries=5,
         logger=__name__,
     )
-    @_catch_all_exceptions
     async def _request(
         self,
         method: Text,
@@ -111,25 +104,21 @@ class AlexaAPI:
             raise AlexapyTooManyRequestsError(response.reason)
         return response
 
-    @_catch_all_exceptions
     async def _post_request(
         self, uri: Text, data: Optional[Dict[Text, Text]] = None
     ) -> ClientResponse:
         return await self._request("post", uri, data)
 
-    @_catch_all_exceptions
     async def _put_request(
         self, uri: Text, data: Optional[Dict[Text, Text]] = None
     ) -> ClientResponse:
         return await self._request("put", uri, data)
 
-    @_catch_all_exceptions
     async def _get_request(
         self, uri: Text, data: Optional[Dict[Text, Text]] = None
     ) -> ClientResponse:
         return await self._request("get", uri, data)
 
-    @_catch_all_exceptions
     async def _del_request(
         self, uri: Text, data: Optional[Dict[Text, Text]] = None
     ) -> ClientResponse:
@@ -138,12 +127,11 @@ class AlexaAPI:
     @staticmethod
     @backoff.on_exception(
         backoff.expo,
-        (AlexapyTooManyRequestsError, AlexapyConnectionError),
+        (AlexapyTooManyRequestsError, AlexapyConnectionError, ClientConnectionError),
         max_time=60,
         max_tries=5,
         logger=__name__,
     )
-    @_catch_all_exceptions
     async def _static_request(
         method: Text,
         login: AlexaLogin,
@@ -180,6 +168,7 @@ class AlexaAPI:
             raise AlexapyTooManyRequestsError(response.reason)
         return response
 
+    @_catch_all_exceptions
     async def run_behavior(self, node_data, queue_delay: float = 1.5,) -> None:
         """Queue node_data for running a behavior in sequence.
 
@@ -246,6 +235,7 @@ class AlexaAPI:
         _LOGGER.debug("Running behavior with data: %s", json.dumps(data))
         await self._post_request("/api/behaviors/preview", data=data)
 
+    @_catch_all_exceptions
     async def send_sequence(
         self, sequence: Text, queue_delay: float = 1.5, **kwargs
     ) -> None:
@@ -304,6 +294,7 @@ class AlexaAPI:
         }
         await self.run_behavior(node_data, queue_delay=queue_delay)
 
+    @_catch_all_exceptions
     async def run_skill(self, skill_id: Text, queue_delay: float = 0) -> None:
         """Run Alexa skill.
 
@@ -336,6 +327,7 @@ class AlexaAPI:
         }
         await self.run_behavior(node_data, queue_delay=queue_delay)
 
+    @_catch_all_exceptions
     async def run_routine(self, utterance: Text, queue_delay: float = 1.5) -> None:
         """Run Alexa automation routine.
 
@@ -411,6 +403,7 @@ class AlexaAPI:
             _populate_device_info(sequence["startNode"])
             await self.run_behavior(sequence["startNode"], queue_delay=queue_delay)
 
+    @_catch_all_exceptions
     async def play_music(
         self,
         provider_id: Text,
@@ -428,6 +421,7 @@ class AlexaAPI:
             queue_delay=queue_delay,
         )
 
+    @_catch_all_exceptions
     async def play_sound(
         self, sound_string_id: Text, customer_id: Text = None, queue_delay: float = 1.5
     ) -> None:
@@ -440,6 +434,7 @@ class AlexaAPI:
             queue_delay=queue_delay,
         )
 
+    @_catch_all_exceptions
     async def stop(
         self,
         customer_id: Text = None,
@@ -525,6 +520,7 @@ class AlexaAPI:
             )
         return devices
 
+    @_catch_all_exceptions
     async def send_tts(
         self,
         message: Text,
@@ -581,6 +577,7 @@ class AlexaAPI:
                 queue_delay=queue_delay,
             )
 
+    @_catch_all_exceptions
     async def send_announcement(
         self,
         message: Text,
@@ -642,6 +639,7 @@ class AlexaAPI:
             queue_delay=queue_delay,
         )
 
+    @_catch_all_exceptions
     async def send_mobilepush(
         self,
         message: Text,
@@ -689,36 +687,44 @@ class AlexaAPI:
             data=data,
         )
 
+    @_catch_all_exceptions
     async def previous(self) -> None:
         """Play previous."""
         await self.set_media({"type": "PreviousCommand"})
 
+    @_catch_all_exceptions
     async def next(self) -> None:
         """Play next."""
         await self.set_media({"type": "NextCommand"})
 
+    @_catch_all_exceptions
     async def pause(self) -> None:
         """Pause."""
         await self.set_media({"type": "PauseCommand"})
 
+    @_catch_all_exceptions
     async def play(self) -> None:
         """Play."""
         await self.set_media({"type": "PlayCommand"})
 
+    @_catch_all_exceptions
     async def forward(self) -> None:
         """Fastforward."""
         await self.set_media({"type": "ForwardCommand"})
 
+    @_catch_all_exceptions
     async def rewind(self) -> None:
         """Rewind."""
         await self.set_media({"type": "RewindCommand"})
 
+    @_catch_all_exceptions
     async def set_volume(self, volume: float, queue_delay: float = 1.5) -> None:
         """Set volume."""
         await self.send_sequence(
             "Alexa.DeviceControls.Volume", value=volume * 100, queue_delay=queue_delay
         )
 
+    @_catch_all_exceptions
     async def shuffle(self, setting: bool) -> None:
         """Shuffle.
 
@@ -726,6 +732,7 @@ class AlexaAPI:
         """
         await self.set_media({"type": "ShuffleCommand", "shuffle": setting})
 
+    @_catch_all_exceptions
     async def repeat(self, setting: bool) -> None:
         """Repeat.
 
@@ -776,6 +783,7 @@ class AlexaAPI:
         )
         return await response.json(content_type=None) if response else None
 
+    @_catch_all_exceptions
     async def set_bluetooth(self, mac: Text) -> None:
         """Pair with bluetooth device with mac address."""
         await self._post_request(
@@ -786,6 +794,7 @@ class AlexaAPI:
             data={"bluetoothDeviceAddress": mac},
         )
 
+    @_catch_all_exceptions
     async def disconnect_bluetooth(self) -> None:
         """Disconnect all bluetooth devices."""
         await self._post_request(
@@ -854,6 +863,7 @@ class AlexaAPI:
         return await response.json(content_type=None) if response else None
 
     @staticmethod
+    @_catch_all_exceptions
     async def get_last_device_serial(
         login: AlexaLogin, items: int = 10
     ) -> Optional[Dict[Text, Any]]:
