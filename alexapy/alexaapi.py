@@ -813,7 +813,9 @@ class AlexaAPI:
             "get", login, "/api/devices-v2/device", query=None
         )
         AlexaAPI.devices[login.email] = (
-            (await response.json(content_type=None))["devices"] if response else None
+            (await response.json(content_type=None))["devices"]
+            if response
+            else AlexaAPI.devices[login.email]
         )
         return AlexaAPI.devices[login.email]
 
