@@ -10,24 +10,18 @@ https://gitlab.com/keatontaylor/alexapy
 import asyncio
 import json
 import logging
-from typing import (
-    Any,
-    Dict,
-    List,  # noqa pylint: disable=unused-import
-    Optional,
-    Text,
-)
+from typing import Any, Dict, Optional, Text
+from typing import List  # noqa pylint: disable=unused-import
 
-from aiohttp import ClientResponse
-from yarl import URL
-
+from aiohttp import ClientConnectionError, ClientResponse
 import backoff
+from yarl import URL
 
 from .alexalogin import AlexaLogin
 from .errors import (
+    AlexapyConnectionError,
     AlexapyLoginError,
     AlexapyTooManyRequestsError,
-    AlexapyConnectionError,
 )
 from .helpers import _catch_all_exceptions, hide_email
 
