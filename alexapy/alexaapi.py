@@ -13,7 +13,7 @@ import logging
 from typing import Any, Dict, Optional, Text
 from typing import List  # noqa pylint: disable=unused-import
 
-from aiohttp import ClientConnectionError, ClientResponse
+from alexapy.aiohttp import ClientConnectionError, ClientResponse
 import backoff
 from yarl import URL
 

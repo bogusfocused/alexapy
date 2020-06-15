@@ -13,7 +13,7 @@ import logging
 from asyncio import CancelledError
 from json import JSONDecodeError
 
-from aiohttp import ClientConnectionError
+from alexapy.aiohttp import ClientConnectionError
 
 from .const import EXCEPTION_TEMPLATE
 from .errors import AlexapyConnectionError, AlexapyLoginError

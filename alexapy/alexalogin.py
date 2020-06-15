@@ -19,11 +19,10 @@ from typing import (
     Union,
 )
 
-import aiohttp
+from alexapy import aiohttp
 from bs4 import BeautifulSoup
 
 from .const import EXCEPTION_TEMPLATE
-from .cookiejar import FixedCookieJar
 from .helpers import _catch_all_exceptions
 
 _LOGGER = logging.getLogger(__name__)
@@ -311,10 +310,7 @@ class AlexaLogin:
             }
 
             #  initiate session
-            cookie_jar = FixedCookieJar()
-            self._session = aiohttp.ClientSession(
-                cookie_jar=cookie_jar, headers=self._headers
-            )
+            self._session = aiohttp.ClientSession(headers=self._headers)
 
     def _prepare_cookies_from_session(self, site: Text) -> None:
         """Update self._cookies from aiohttp session.
