@@ -1,0 +1,3 @@
+[submodule "deps/aiohttp"]
+	path = deps/aiohttp
+	url = https://github.com/alandtse/aiohttp.git

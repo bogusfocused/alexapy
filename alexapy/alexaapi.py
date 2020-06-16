@@ -13,7 +13,7 @@ import logging
 from typing import Any, Dict, Optional, Text
 from typing import List  # noqa pylint: disable=unused-import
 
-from aiohttp import ClientConnectionError, ClientResponse
+from alexapy.aiohttp import ClientConnectionError, ClientResponse
 import backoff
 from yarl import URL
 
@@ -39,8 +39,8 @@ class AlexaAPI:
     """
 
     devices: Dict[Text, Any] = {}
-    _sequence_queue: List[Dict[Any, Any]] = []
-    _sequence_lock = asyncio.Lock()
+    _sequence_queue: Dict[Any, List[Dict[Any, Any]]] = {}
+    _sequence_lock: Dict[Any, asyncio.Lock] = {}
 
     def __init__(self, device, login: AlexaLogin):
         """Initialize Alexa device."""
@@ -49,6 +49,8 @@ class AlexaAPI:
         self._session = login.session
         self._url: Text = "https://alexa." + login.url
         self._login._headers["Referer"] = "{}/spa/index.html".format(self._url)
+        AlexaAPI._sequence_queue[self._login.email] = []
+        AlexaAPI._sequence_lock[self._login.email] = asyncio.Lock()
         try:
             assert self._login._cookies is not None
             csrf = self._login._cookies["csrf"]
@@ -191,42 +193,50 @@ class AlexaAPI:
                 "@type": "com.amazon.alexa.behaviors.model.SerialNode",
                 "nodesToExecute": [],
             }
-            if AlexaAPI._sequence_queue:
-                last_node = AlexaAPI._sequence_queue[-1]
-                new_node = node_data
-                if node_data and isinstance(node_data, list):
-                    new_node = node_data[0]
-                if (
-                    last_node.get("operationPayload", {}).get("deviceSerialNumber")
-                    and new_node.get("operationPayload", {}).get("deviceSerialNumber")
-                ) and last_node.get("operationPayload", {}).get(
-                    "deviceSerialNumber"
-                ) != new_node.get(
-                    "operationPayload", {}
-                ).get(
-                    "deviceSerialNumber"
-                ):
-                    _LOGGER.debug("Creating Parallel node")
-                    sequence_json["startNode"][
-                        "@type"
-                    ] = "com.amazon.alexa.behaviors.model.ParallelNode"
-            if isinstance(node_data, list):
-                AlexaAPI._sequence_queue.extend(node_data)
-            else:
-                AlexaAPI._sequence_queue.append(node_data)
-            items = len(AlexaAPI._sequence_queue)
+            async with AlexaAPI._sequence_lock[self._login.email]:
+                if AlexaAPI._sequence_queue[self._login.email]:
+                    last_node = AlexaAPI._sequence_queue[self._login.email][-1]
+                    new_node = node_data
+                    if node_data and isinstance(node_data, list):
+                        new_node = node_data[0]
+                    if (
+                        last_node.get("operationPayload", {}).get("deviceSerialNumber")
+                        and new_node.get("operationPayload", {}).get(
+                            "deviceSerialNumber"
+                        )
+                    ) and last_node.get("operationPayload", {}).get(
+                        "deviceSerialNumber"
+                    ) != new_node.get(
+                        "operationPayload", {}
+                    ).get(
+                        "deviceSerialNumber"
+                    ):
+                        _LOGGER.debug("Creating Parallel node")
+                        sequence_json["startNode"][
+                            "@type"
+                        ] = "com.amazon.alexa.behaviors.model.ParallelNode"
+                if isinstance(node_data, list):
+                    AlexaAPI._sequence_queue[self._login.email].extend(node_data)
+                else:
+                    AlexaAPI._sequence_queue[self._login.email].append(node_data)
+                items = len(AlexaAPI._sequence_queue[self._login.email])
+                old_sequence: List[Dict[Any, Any]] = AlexaAPI._sequence_queue[
+                    self._login.email
+                ]
             await asyncio.sleep(queue_delay)
-            if items == len(AlexaAPI._sequence_queue):
-                sequence_json["startNode"]["nodesToExecute"].extend(
-                    AlexaAPI._sequence_queue
-                )
-                AlexaAPI._sequence_queue = []
-                _LOGGER.debug("Creating sequence for %s items", items)
-            else:
-                _LOGGER.debug(
-                    "Queue size changed while waiting %s seconds", queue_delay
-                )
-                return
+            async with AlexaAPI._sequence_lock[self._login.email]:
+                if (
+                    items == len(AlexaAPI._sequence_queue[self._login.email])
+                    and old_sequence == AlexaAPI._sequence_queue[self._login.email]
+                ):
+                    sequence_json["startNode"]["nodesToExecute"].extend(
+                        AlexaAPI._sequence_queue[self._login.email]
+                    )
+                    AlexaAPI._sequence_queue[self._login.email] = []
+                    _LOGGER.debug("Creating sequence for %s items", items)
+                else:
+                    _LOGGER.debug("Queue changed while waiting %s seconds", queue_delay)
+                    return
         data = {
             "behaviorId": "PREVIEW",
             "sequenceJson": json.dumps(sequence_json),
@@ -813,7 +823,9 @@ class AlexaAPI:
             "get", login, "/api/devices-v2/device", query=None
         )
         AlexaAPI.devices[login.email] = (
-            (await response.json(content_type=None))["devices"] if response else None
+            (await response.json(content_type=None))["devices"]
+            if response
+            else AlexaAPI.devices[login.email]
         )
         return AlexaAPI.devices[login.email]
 

@@ -19,11 +19,10 @@ from typing import (
     Union,
 )
 
-import aiohttp
+from alexapy import aiohttp
 from bs4 import BeautifulSoup
 
 from .const import EXCEPTION_TEMPLATE
-from .cookiejar import FixedCookieJar
 from .helpers import _catch_all_exceptions
 
 _LOGGER = logging.getLogger(__name__)
@@ -117,8 +116,6 @@ class AlexaLogin:
         cookies: Optional[RequestsCookieJar] = None
         numcookies: int = 0
         loaded: bool = False
-        if not self._session:
-            self._create_session()
         if self._cookiefile:
             for cookiefile in self._cookiefile:
                 numcookies = 0
@@ -313,18 +310,14 @@ class AlexaLogin:
             }
 
             #  initiate session
-            cookie_jar = FixedCookieJar()
-            self._session = aiohttp.ClientSession(
-                cookie_jar=cookie_jar, headers=self._headers
-            )
+            self._session = aiohttp.ClientSession(headers=self._headers)
 
     def _prepare_cookies_from_session(self, site: Text) -> None:
         """Update self._cookies from aiohttp session.
 
         This should only be needed to run after a succesful login.
         """
-        if not self._session:
-            self._create_session()
+        assert self._session
         cookie_jar = self._session.cookie_jar
         if self._cookies is None:
             self._cookies = {}
@@ -349,8 +342,8 @@ class AlexaLogin:
 
     def _print_session_cookies(self) -> Text:
         result: Text = ""
-        if not self._session:
-            self._create_session()
+        if not self._session.cookie_jar:
+            result = "Session cookie jar is empty."
         for cookie in self._session.cookie_jar:
             result += "{}: expires:{} max-age:{} {}={}\n".format(
                 cookie["domain"],
@@ -427,29 +420,32 @@ class AlexaLogin:
         # async with aiofiles.open("/config/anti-automation.html", "rb") as myfile:
         #     html = await myfile.read()
         site = await self._process_page(html, site)
-        missing_params = self._populate_data(site, data)
-        if self._debug:
-            from json import dumps  # pylint: disable=import-outside-toplevel
+        if not self.status.get("ap_error"):
+            missing_params = self._populate_data(site, data)
+            if self._debug:
+                from json import dumps  # pylint: disable=import-outside-toplevel
 
-            if missing_params:
-                _LOGGER.debug("WARNING: Detected missing params: %s", missing_params)
-            _LOGGER.debug("Session Cookies:\n%s", self._print_session_cookies())
-            _LOGGER.debug("Submit Form Data: %s", dumps(self._data))
-            _LOGGER.debug("Header: %s", dumps(self._headers))
+                if missing_params:
+                    _LOGGER.debug(
+                        "WARNING: Detected missing params: %s", missing_params
+                    )
+                _LOGGER.debug("Session Cookies:\n%s", self._print_session_cookies())
+                _LOGGER.debug("Submit Form Data: %s", dumps(self._data))
+                _LOGGER.debug("Header: %s", dumps(self._headers))
 
-        # submit post request with username/password and other needed info
-        post_resp = await self._session.post(
-            site, data=self._data, headers=self._headers, ssl=self._ssl
-        )
-        # headers need to be submitted to have the referer
-        if self._debug:
-            import aiofiles
+            # submit post request with username/password and other needed info
+            post_resp = await self._session.post(
+                site, data=self._data, headers=self._headers, ssl=self._ssl,
+            )
+            # headers need to be submitted to have the referer
+            if self._debug:
+                import aiofiles
 
-            async with aiofiles.open(self._debugpost, mode="wb") as localfile:
-                await localfile.write(await post_resp.read())
-        self._lastreq = post_resp
-        site = await self._process_resp(post_resp)
-        self._site = await self._process_page(await post_resp.text(), site)
+                async with aiofiles.open(self._debugpost, mode="wb") as localfile:
+                    await localfile.write(await post_resp.read())
+            self._lastreq = post_resp
+            site = await self._process_resp(post_resp)
+            self._site = await self._process_page(await post_resp.text(), site)
 
     async def _process_resp(self, resp) -> Text:
         if resp.history:
@@ -643,8 +639,6 @@ class AlexaLogin:
                 )
                 status["login_successful"] = True
                 self._prepare_cookies_from_session(self._url)
-                if not self._session:
-                    self._create_session()
                 if self._debug:
                     _LOGGER.debug("Saving cookie: %s", self._print_session_cookies())
                 for cookiefile in self._cookiefile:
@@ -693,9 +687,11 @@ class AlexaLogin:
                 site = search_results.groups()[0] + "/verify"
                 _LOGGER.debug("Found post url to verify; converting to %s", site)
             elif formsite and formsite == "get":
-                if "ap_error" in status:
+                if "ap_error" in status and status.get("ap_error_href"):
                     assert isinstance(status["ap_error_href"], str)
                     site = status["ap_error_href"]
+                else:
+                    site = self._headers["Referer"]
                 _LOGGER.debug("Found post url to get; forcing get to %s", site)
                 self._lastreq = None
             elif formsite and formsite != "get":
@@ -722,7 +718,7 @@ class AlexaLogin:
         verificationcode: Optional[Text] = (
             None if "verificationcode" not in data else data["verificationcode"]
         )
-        _LOGGER.debug(("Preparing post to %s data: %s"), site, data)
+        _LOGGER.debug("Preparing post to %s with input data: %s", site, data)
 
         #  add username and password to the data for post request
         #  check if there is an input field
