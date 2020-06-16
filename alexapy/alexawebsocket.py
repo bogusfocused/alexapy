@@ -22,7 +22,7 @@ from typing import (
     cast,
 )
 
-import aiohttp
+from alexapy import aiohttp
 
 from .alexalogin import AlexaLogin  # noqa pylint
 
