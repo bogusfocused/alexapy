@@ -59,7 +59,8 @@ exclude = '''
     | build
     | dist
   )/
-  | deps           # also separately exclude a file named deps in
+  | deps
+  | alexapy/aiohttp           # also separately exclude a file named deps in
                      # the root of the project
 )
 '''
