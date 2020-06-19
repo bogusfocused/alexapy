@@ -13,7 +13,7 @@ import logging
 from asyncio import CancelledError
 from json import JSONDecodeError
 
-from alexapy.aiohttp import ClientConnectionError
+from alexapy.aiohttp import ClientConnectionError, ContentTypeError
 
 from .const import EXCEPTION_TEMPLATE
 from .errors import AlexapyConnectionError, AlexapyLoginError
@@ -105,6 +105,16 @@ def _catch_all_exceptions(func):
         except (JSONDecodeError) as ex:
             _LOGGER.error(
                 "%s.%s(%s, %s): A login error occured: %s",
+                func.__module__[func.__module__.find(".") + 1 :],
+                func.__name__,
+                obfuscate(args),
+                obfuscate(kwargs),
+                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+            )
+            raise AlexapyLoginError
+        except (ContentTypeError) as ex:
+            _LOGGER.error(
+                "%s.%s(%s, %s): A login error occured; Amazon may want you to change your password: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
                 obfuscate(args),
