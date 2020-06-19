@@ -13,7 +13,7 @@ import logging
 from asyncio import CancelledError
 from json import JSONDecodeError
 
-from alexapy.aiohttp import ClientConnectionError
+from alexapy.aiohttp import ClientConnectionError, ContentTypeError
 
 from .const import EXCEPTION_TEMPLATE
 from .errors import AlexapyConnectionError, AlexapyLoginError
@@ -59,6 +59,31 @@ def hide_serial(item):
     return response
 
 
+def obfuscate(item):
+    """Obfuscate email and password."""
+    if item is None:
+        return ""
+    if isinstance(item, dict):
+        response = item.copy()
+        for key, value in item.items():
+            if key in ["password"]:
+                response[key] = f"REDACTED {len(value)} CHARS"
+            elif key in ["email"]:
+                response[key] = hide_email(value)
+            elif isinstance(value, (dict, list)):
+                response[key] = obfuscate(value)
+    elif isinstance(item, list):
+        response = []
+        for list_item in item:
+            if isinstance(list_item, dict):
+                response.append(obfuscate(list_item))
+            else:
+                response.append(list_item)
+    else:
+        return item
+    return response
+
+
 def _catch_all_exceptions(func):
     # pylint: disable=import-outside-toplevel
     import functools
@@ -72,8 +97,8 @@ def _catch_all_exceptions(func):
                 "%s.%s(%s, %s): A connection error occured: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
-                args,
-                kwargs,
+                obfuscate(args),
+                obfuscate(kwargs),
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             raise AlexapyConnectionError
@@ -82,8 +107,18 @@ def _catch_all_exceptions(func):
                 "%s.%s(%s, %s): A login error occured: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
-                args,
-                kwargs,
+                obfuscate(args),
+                obfuscate(kwargs),
+                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+            )
+            raise AlexapyLoginError
+        except (ContentTypeError) as ex:
+            _LOGGER.error(
+                "%s.%s(%s, %s): A login error occured; Amazon may want you to change your password: %s",
+                func.__module__[func.__module__.find(".") + 1 :],
+                func.__name__,
+                obfuscate(args),
+                obfuscate(kwargs),
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             raise AlexapyLoginError
@@ -92,8 +127,8 @@ def _catch_all_exceptions(func):
                 "%s.%s(%s, %s): Timeout error occured accessing AlexaAPI: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
-                args,
-                kwargs,
+                obfuscate(args),
+                obfuscate(kwargs),
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             return None
@@ -102,8 +137,8 @@ def _catch_all_exceptions(func):
                 "%s.%s(%s, %s): An error occured accessing AlexaAPI: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
-                args,
-                kwargs,
+                obfuscate(args),
+                obfuscate(kwargs),
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             raise

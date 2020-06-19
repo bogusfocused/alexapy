@@ -484,7 +484,7 @@ class AlexaAPI:
             skillId="amzn1.ask.1p.alexadevicecontrols",
             customerId=customer_id,
             queue_delay=queue_delay,
-            **kwargs
+            **kwargs,
         )
 
     def process_targets(
