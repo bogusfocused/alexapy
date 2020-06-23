@@ -70,7 +70,13 @@ def obfuscate(item):
                 response[key] = f"REDACTED {len(value)} CHARS"
             elif key in ["email"]:
                 response[key] = hide_email(value)
-            elif isinstance(value, (dict, list)):
+            elif key in [
+                "deviceSerialNumber",
+                "serialNumber",
+                "destinationUserId",
+                "customerId",
+            ]:
+                response[key] = hide_serial(value)
                 response[key] = obfuscate(value)
     elif isinstance(item, list):
         response = []
