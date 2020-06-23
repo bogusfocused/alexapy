@@ -45,6 +45,7 @@ def hide_serial(item):
                 "deviceSerialNumber",
                 "serialNumber",
                 "destinationUserId",
+                "customerId",
             ]:
                 response[key] = hide_serial(value)
     elif isinstance(item, str):
@@ -60,7 +61,7 @@ def hide_serial(item):
 
 
 def obfuscate(item):
-    """Obfuscate email and password."""
+    """Obfuscate email, password, and other known sensitive keys."""
     if item is None:
         return ""
     if isinstance(item, dict):
@@ -77,14 +78,17 @@ def obfuscate(item):
                 "customerId",
             ]:
                 response[key] = hide_serial(value)
+            elif isinstance(value, (dict, list, tuple)):
                 response[key] = obfuscate(value)
-    elif isinstance(item, list):
+    elif isinstance(item, (list, tuple)):
         response = []
         for list_item in item:
-            if isinstance(list_item, dict):
+            if isinstance(list_item, (dict, list, tuple)):
                 response.append(obfuscate(list_item))
             else:
                 response.append(list_item)
+        if isinstance(item, tuple):
+            response = tuple(response)
     else:
         return item
     return response
