@@ -8,19 +8,16 @@ For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
 
+from json import JSONDecodeError
 import logging
-from typing import (
-    Callable,
-    Dict,  # noqa pylint: disable=unused-import
-    List,
-    Optional,
-    Text,
-    Tuple,
-    Union,
-)
+from typing import Callable, List, Optional, Text, Tuple, Union
+from typing import Dict  # noqa pylint: disable=unused-import
+
+from bs4 import BeautifulSoup
+from simplejson import JSONDecodeError as SimpleJSONDecodeError
 
 from alexapy import aiohttp
-from bs4 import BeautifulSoup
+from alexapy.aiohttp.client_exceptions import ContentTypeError
 
 from .const import EXCEPTION_TEMPLATE
 from .helpers import _catch_all_exceptions
@@ -273,10 +270,6 @@ class AlexaLogin:
             self._prefix + self._url + "/api/bootstrap", cookies=cookies, ssl=self._ssl
         )
         await self._process_resp(get_resp)
-        from simplejson import JSONDecodeError as SimpleJSONDecodeError
-        from json import JSONDecodeError
-        from aiohttp.client_exceptions import ContentTypeError
-
         try:
             json = await get_resp.json()
             email = json["authentication"]["customerEmail"]
