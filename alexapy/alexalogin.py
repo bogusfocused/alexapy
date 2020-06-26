@@ -12,6 +12,7 @@ from json import JSONDecodeError
 import logging
 from typing import Callable, List, Optional, Text, Tuple, Union
 from typing import Dict  # noqa pylint: disable=unused-import
+from urllib.parse import urlencode
 
 from bs4 import BeautifulSoup
 from simplejson import JSONDecodeError as SimpleJSONDecodeError
@@ -413,7 +414,7 @@ class AlexaLogin:
         # async with aiofiles.open("/config/anti-automation.html", "rb") as myfile:
         #     html = await myfile.read()
         site = await self._process_page(html, site)
-        if not self.status.get("ap_error"):
+        if not self.status.get("force_get"):
             missing_params = self._populate_data(site, data)
             if self._debug:
                 from json import dumps  # pylint: disable=import-outside-toplevel
@@ -480,8 +481,8 @@ class AlexaLogin:
 
         def find_links() -> None:
             links = {}
+            index = 0
             if links_tag:
-                index = 0
                 for link in links_tag:
                     if not link.string:
                         continue
@@ -496,6 +497,28 @@ class AlexaLogin:
                     elif href.startswith("http"):
                         links[str(index)] = (string, href)
                         index += 1
+            if forms_tag:
+                for form in forms_tag:
+                    if (
+                        form.get("method")
+                        and form.get("method") == "get"
+                        and form.get("action")
+                    ):
+                        string = form.get("id")
+                        action = form.get("action")
+                        params = {}
+                        inputs = form.findAll("input")
+                        for item in inputs:
+                            if (
+                                item
+                                and item.get("type")
+                                and item.get("type") == "hidden"
+                            ):
+                                params[item.get("name")] = item.get("value")
+                        href = f"{self._prefix}{self._url}{action}?{urlencode(params)}"
+                        links[str(index)] = (string, href)
+                        index += 1
+            if links:
                 _LOGGER.debug("Links: %s", links)
             self._links = links
 
@@ -517,7 +540,9 @@ class AlexaLogin:
         authselect_tag = soup.find("form", {"id": "auth-select-device-form"})
         verificationcode_tag = soup.find("form", {"action": "verify"})
         verification_captcha_tag = soup.find("img", {"alt": "captcha"})
+        javascript_authentication_tag = soup.find("form", {"id": "pollingForm"})
         links_tag = soup.findAll("a", href=True)
+        forms_tag = soup.findAll("form")
         form_tag = soup.find("form")
         missingcookies_tag = soup.find(id="ap_error_return_home")
         if self._debug:
@@ -623,7 +648,19 @@ class AlexaLogin:
             for link in links:
                 href = link["href"]
             status["ap_error"] = True
+            status["force_get"] = True
             status["ap_error_href"] = href
+        elif javascript_authentication_tag:
+            import re
+
+            message: Text = ""
+
+            message = soup.find("span").getText()
+            for div in soup.findAll("div", {"id": "channelDetails"}):
+                message += div.getText()
+            status["force_get"] = True
+            status["message"] = re.sub("(\\s)+", "\\1", message)
+            _LOGGER.debug("Javascript Authentication page detected: %s", message)
         else:
             _LOGGER.debug("Captcha/2FA not requested; confirming login.")
             if await self.test_loggedin():
@@ -687,7 +724,10 @@ class AlexaLogin:
                     site = self._headers["Referer"]
                 _LOGGER.debug("Found post url to get; forcing get to %s", site)
                 self._lastreq = None
-            elif formsite and formsite != "get":
+            elif formsite and formsite == "/ap/cvf/approval/poll":
+                site = form_tag.find("input", {"name": "openid.return_to"}).get("value")
+                _LOGGER.debug("Found url for openid.return_to %s", site)
+            elif formsite:
                 site = formsite
                 _LOGGER.debug("Found post url to %s", site)
         return site
