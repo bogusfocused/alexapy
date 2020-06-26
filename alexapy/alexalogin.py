@@ -79,7 +79,7 @@ class AlexaLogin:
 
     @property
     def email(self) -> Text:
-        """Return email for this Login."""
+        """Return email or mobile account for this Login."""
         return self._email
 
     @property
@@ -279,8 +279,11 @@ class AlexaLogin:
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             return False
-        if email.lower() == self._email.lower():
+        if email != "" and email.lower() == self._email.lower():
             _LOGGER.debug("Logged in as %s", email)
+            return True
+        if email == "":
+            _LOGGER.debug("Logged in as mobile account %s", email)
             return True
         _LOGGER.debug("Not logged in due to email mismatch")
         await self.reset()
