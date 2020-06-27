@@ -24,14 +24,16 @@ _LOGGER = logging.getLogger(__name__)
 def hide_email(email):
     """Obfuscate email."""
     part = email.split("@")
-    return "{}{}{}@{}{}{}".format(
-        part[0][0],
-        "*" * (len(part[0]) - 2),
-        part[0][-1],
-        part[1][0],
-        "*" * (len(part[1]) - 2),
-        part[1][-1],
-    )
+    if len(part) > 1:
+        return "{}{}{}@{}{}{}".format(
+            part[0][0],
+            "*" * (len(part[0]) - 2),
+            part[0][-1],
+            part[1][0],
+            "*" * (len(part[1]) - 2),
+            part[1][-1],
+        )
+    return hide_serial(email)
 
 
 def hide_serial(item):
