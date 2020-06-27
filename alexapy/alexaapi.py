@@ -85,6 +85,8 @@ class AlexaAPI:
         #               uri,
         #               data,
         #               query)
+        if self._session.closed:
+            raise AlexapyLoginError("Session is closed")
         response = await getattr(self._session, method)(
             url,
             json=data,
@@ -149,6 +151,8 @@ class AlexaAPI:
         #               uri,
         #               data,
         #               query)
+        if session.closed:
+            raise AlexapyLoginError("Session is closed")
         response = await getattr(session, method)(
             url,
             json=data,
