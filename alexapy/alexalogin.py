@@ -90,7 +90,7 @@ class AlexaLogin:
 
     @property
     def url(self) -> Text:
-        """Return session for this Login."""
+        """Return url for this Login."""
         return self._url
 
     @property

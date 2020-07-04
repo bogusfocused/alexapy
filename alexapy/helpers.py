@@ -134,7 +134,7 @@ def _catch_all_exceptions(func):
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             raise AlexapyLoginError
-        except CancelledError as ex:  # pylint: disable=broad-except
+        except CancelledError as ex:
             _LOGGER.warning(
                 "%s.%s(%s, %s): Timeout error occured accessing AlexaAPI: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
