@@ -77,6 +77,7 @@ class AlexaLogin:
         self._options: Optional[Dict[Text, Text]] = {}
         self._site: Optional[Text] = None
         self._create_session()
+        self._close_requested = False
 
     @property
     def email(self) -> Text:
@@ -90,8 +91,13 @@ class AlexaLogin:
 
     @property
     def url(self) -> Text:
-        """Return session for this Login."""
+        """Return url for this Login."""
         return self._url
+
+    @property
+    def close_requested(self) -> bool:
+        """Return whether this Login has been asked to close."""
+        return self._close_requested
 
     @property
     def links(self) -> Text:
@@ -197,6 +203,7 @@ class AlexaLogin:
 
     async def close(self) -> None:
         """Close connection for login."""
+        self._close_requested = True
         if self._session and not self._session.closed:
             if self._session._connector_owner:
                 assert self._session._connector is not None
@@ -216,6 +223,7 @@ class AlexaLogin:
         self._options = {}
         self._site = None
         self._create_session()
+        self._close_requested = False
         import os
         from aiofiles import os as aioos
 
