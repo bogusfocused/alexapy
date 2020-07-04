@@ -13,13 +13,15 @@ import logging
 from typing import Any, Dict, Optional, Text
 from typing import List  # noqa pylint: disable=unused-import
 
-from alexapy.aiohttp import ClientConnectionError, ClientResponse
 import backoff
 from yarl import URL
+
+from alexapy.aiohttp import ClientConnectionError, ClientResponse
 
 from .alexalogin import AlexaLogin
 from .errors import (
     AlexapyConnectionError,
+    AlexapyLoginCloseRequested,
     AlexapyLoginError,
     AlexapyTooManyRequestsError,
 )
@@ -85,6 +87,15 @@ class AlexaAPI:
         #               uri,
         #               data,
         #               query)
+        if self._login.close_requested:
+            _LOGGER.debug(
+                "Login object has been asked to close; ignoring %s request to %s with %s %s",
+                method,
+                uri,
+                data,
+                query,
+            )
+            raise AlexapyLoginCloseRequested()
         if self._session.closed:
             raise AlexapyLoginError("Session is closed")
         response = await getattr(self._session, method)(
@@ -151,6 +162,15 @@ class AlexaAPI:
         #               uri,
         #               data,
         #               query)
+        if login.close_requested:
+            _LOGGER.debug(
+                "Login object has been asked to close; ignoring %s request to %s with %s %s",
+                method,
+                uri,
+                data,
+                query,
+            )
+            raise AlexapyLoginCloseRequested()
         if session.closed:
             raise AlexapyLoginError("Session is closed")
         response = await getattr(session, method)(

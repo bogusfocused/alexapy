@@ -16,7 +16,11 @@ from json import JSONDecodeError
 from alexapy.aiohttp import ClientConnectionError, ContentTypeError
 
 from .const import EXCEPTION_TEMPLATE
-from .errors import AlexapyConnectionError, AlexapyLoginError
+from .errors import (
+    AlexapyConnectionError,
+    AlexapyLoginCloseRequested,
+    AlexapyLoginError,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -134,7 +138,7 @@ def _catch_all_exceptions(func):
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             raise AlexapyLoginError
-        except CancelledError as ex:  # pylint: disable=broad-except
+        except CancelledError as ex:
             _LOGGER.warning(
                 "%s.%s(%s, %s): Timeout error occured accessing AlexaAPI: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
@@ -144,6 +148,8 @@ def _catch_all_exceptions(func):
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             return None
+        except AlexapyLoginCloseRequested:
+            raise
         except Exception as ex:  # pylint: disable=broad-except
             _LOGGER.error(
                 "%s.%s(%s, %s): An error occured accessing AlexaAPI: %s",

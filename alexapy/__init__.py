@@ -8,10 +8,15 @@ For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
 from importlib_metadata import version
+
 from .alexaapi import AlexaAPI
 from .alexalogin import AlexaLogin
 from .alexawebsocket import WebsocketEchoClient
-from .errors import AlexapyConnectionError, AlexapyLoginError
+from .errors import (
+    AlexapyConnectionError,
+    AlexapyLoginCloseRequested,
+    AlexapyLoginError,
+)
 from .helpers import hide_email, hide_serial
 
 __version__ = version("alexapy")
@@ -20,6 +25,7 @@ __all__ = [
     "AlexaLogin",
     "AlexaAPI",
     "AlexapyConnectionError",
+    "AlexapyLoginCloseRequested",
     "AlexapyLoginError",
     "WebsocketEchoClient",
     "hide_email",
