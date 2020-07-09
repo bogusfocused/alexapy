@@ -17,6 +17,7 @@ from urllib.parse import urlencode
 
 from bs4 import BeautifulSoup
 from simplejson import JSONDecodeError as SimpleJSONDecodeError
+from urllib.parse import urlparse
 
 from alexapy import aiohttp
 from alexapy.aiohttp.client_exceptions import ContentTypeError
@@ -768,9 +769,8 @@ class AlexaLogin:
                 self._lastreq = None
             elif formsite and formsite == "/ap/cvf/approval/poll":
                 self._data = self.get_inputs(soup, {"id": "pollingForm"})
-                search_results = re.search(r"(.+)/(.*)", str(site))
-                assert search_results is not None
-                site = f"{search_results.groups()[0]}{formsite}"
+                url = urlparse(site)
+                site = f"{url.scheme}://{url.netloc}{formsite}"
                 # site = form_tag.find("input", {"name": "openid.return_to"}).get("value")
                 _LOGGER.debug("Found url for polling page %s", site)
             elif formsite:
