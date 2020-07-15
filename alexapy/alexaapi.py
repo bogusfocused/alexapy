@@ -291,6 +291,8 @@ class AlexaAPI:
         **kwargs : Each named variable must match a recognized Amazon variable
                    within the operationPayload. Please see examples in
                    play_music, send_announcement, and send_tts.
+                   Variables with value None are removed from the operationPayload.
+                   Variables prefixed with "root_" will be added to the root node instead.
 
         Supported sequences:
         Alexa.Weather.Play
@@ -316,8 +318,15 @@ class AlexaAPI:
             "locale": (self._device._locale if self._device._locale else "en-US"),
             "customerId": self._device._device_owner_customer_id,
         }
+        root_node = {}
         if kwargs is not None:
             operation_payload.update(kwargs)
+            for key, value in kwargs.items():
+                if value is None:  # remove null keys
+                    operation_payload.pop(key)
+                elif isinstance(value, str) and value.startswith("root_"):
+                    operation_payload.pop(key)
+                    root_node[key] = value[5:]
             if kwargs.get("devices"):
                 operation_payload.pop("deviceType")
                 operation_payload.pop("deviceSerialNumber")
@@ -326,6 +335,7 @@ class AlexaAPI:
             "type": sequence,
             "operationPayload": operation_payload,
         }
+        node_data.update(root_node)
         await self.run_behavior(node_data, queue_delay=queue_delay)
 
     @_catch_all_exceptions
@@ -681,7 +691,7 @@ class AlexaAPI:
         customer_id: Text = None,
         queue_delay: float = 1.5,
     ) -> None:
-        """Send announcment to Alexa devices.
+        """Send mobile push to Alexa app.
 
         Push a message to mobile devices with the Alexa App. This probably
         should be a static method.
@@ -709,6 +719,47 @@ class AlexaAPI:
             title=title,
             skillId="amzn1.ask.1p.routines.messaging",
             queue_delay=queue_delay,
+        )
+
+    @_catch_all_exceptions
+    async def send_dropin_notification(
+        self,
+        message: Text,
+        title: Text = "AlexaAPI Dropin Notification",
+        customer_id: Text = None,
+        queue_delay: float = 1.5,
+    ) -> None:
+        """Send dropin notification to Alexa app for Alexa device.
+
+        Push a message to mobile devices with the Alexa App. This can spawn a
+        notification to drop in on a specific device.
+
+        Args:
+        message (string): The message to push to the mobile device.
+        title (string): Title for push notification
+        customer_id (string): CustomerId to use for sending. When none
+                              specified this defaults to the device owner.
+        queue_delay (float, optional): The number of seconds to wait
+                                        for commands to queue together.
+                                        Defaults to 1.5.
+                                        Must be positive.
+
+        """
+        await self.send_sequence(
+            "Alexa.Notifications.DropIn",
+            customerId=(
+                customer_id
+                if customer_id is not None
+                else self._device._device_owner_customer_id
+            ),
+            notificationMessage=message,
+            alexaUrl="#v2/comms/conversation-list?showDropInDialog=true",
+            title=title,
+            skillId="root_amzn1.ask.1p.action.dropin",
+            queue_delay=queue_delay,
+            deviceType=None,
+            deviceSerialNumber=None,
+            locale=None,
         )
 
     async def set_media(self, data: Dict[Text, Any]) -> None:
