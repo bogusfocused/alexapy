@@ -681,7 +681,7 @@ class AlexaAPI:
         customer_id: Text = None,
         queue_delay: float = 1.5,
     ) -> None:
-        """Send announcment to Alexa devices.
+        """Send mobile push to Alexa app.
 
         Push a message to mobile devices with the Alexa App. This probably
         should be a static method.
