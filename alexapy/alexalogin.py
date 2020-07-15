@@ -303,9 +303,9 @@ class AlexaLogin:
             #  define session headers
             self._headers = {
                 "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 6.3; Win64; x64) "
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) "
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/68.0.3440.106 Safari/537.36"
+                    "Chrome/83.0.4103.116 Safari/537.36"
                 ),
                 "Accept": (
                     "text/html,application/xhtml+xml, "
