@@ -120,7 +120,7 @@ class AlexaAPI:
         return response
 
     async def _post_request(
-        self, uri: Text, data: Optional[Dict[Text, Text]] = None
+        self, uri: Text, data: Optional[Dict[Text, Any]] = None
     ) -> ClientResponse:
         return await self._request("post", uri, data)
 
@@ -1183,3 +1183,32 @@ class AlexaAPI:
                     "%s:Succesfully deleted %s", hide_email(email), activity["id"],
                 )
         return completed
+
+    @_catch_all_exceptions
+    async def set_background(self, url: Text) -> bool:
+        """Set background for Echo Show.
+
+        Sets the background to Alexa App Photo with the specific https url.
+
+        Args
+        url (URL): valid https url for the image
+
+        Returns
+        Whether the command was successful.
+
+        """
+        data = {
+            "deviceSerialNumber": self._device.unique_id,
+            "deviceType": self._device._device_type,
+            "backgroundImageID": "JqIFZhtBTx25wLGTJGdNGQ",
+            "backgroundImageType": "PERSONAL_PHOTOS",
+            "backgroundImageURL": url,
+        }
+        _LOGGER.debug("Setting background of %s to: %s", self._device, url)
+        if url.startswith("http://"):
+            _LOGGER.warning("Background URL should be a valid https image")
+        response = await self._post_request("/api/background-image", data=data)
+        response_json = await response.json(content_type=None) if response else None
+        success = response.status == 200
+        _LOGGER.debug("Success: %s Response: %s", success, response_json)
+        return success
