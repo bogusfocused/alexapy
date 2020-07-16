@@ -826,7 +826,7 @@ class AlexaAPI:
         await self.set_media({"type": "RepeatCommand", "repeat": setting})
 
     @_catch_all_exceptions
-    async def get_state(self) -> Dict[Text, Any]:
+    async def get_state(self) -> Optional[Dict[Text, Any]]:
         """Get playing state."""
         response = await self._get_request(
             "/api/np/player?deviceSerialNumber="
@@ -861,7 +861,7 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def get_bluetooth(login) -> Dict[Text, Any]:
+    async def get_bluetooth(login) -> Optional[Dict[Text, Any]]:
         """Get paired bluetooth devices."""
         response = await AlexaAPI._static_request(
             "get", login, "/api/bluetooth", query={"cached": "false"}
@@ -892,7 +892,7 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def get_devices(login: AlexaLogin) -> Dict[Text, Any]:
+    async def get_devices(login: AlexaLogin) -> Optional[Dict[Text, Any]]:
         """Identify all Alexa devices."""
         response = await AlexaAPI._static_request(
             "get", login, "/api/devices-v2/device", query=None
@@ -906,7 +906,7 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def get_authentication(login: AlexaLogin) -> Dict[Text, Any]:
+    async def get_authentication(login: AlexaLogin) -> Optional[Dict[Text, Any]]:
         """Get authentication json."""
         response = await AlexaAPI._static_request(
             "get", login, "/api/bootstrap", query=None
@@ -919,7 +919,9 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def get_activities(login: AlexaLogin, items: int = 10) -> Dict[Text, Any]:
+    async def get_activities(
+        login: AlexaLogin, items: int = 10
+    ) -> Optional[Dict[Text, Any]]:
         """Get activities json."""
         response = await AlexaAPI._static_request(
             "get",
@@ -933,7 +935,7 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def get_device_preferences(login: AlexaLogin) -> Dict[Text, Any]:
+    async def get_device_preferences(login: AlexaLogin) -> Optional[Dict[Text, Any]]:
         """Identify all Alexa device preferences."""
         response = await AlexaAPI._static_request(
             "get", login, "/api/device-preferences", query={}
@@ -942,7 +944,9 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def get_automations(login: AlexaLogin, items: int = 1000) -> Dict[Text, Any]:
+    async def get_automations(
+        login: AlexaLogin, items: int = 1000
+    ) -> Optional[Dict[Text, Any]]:
         """Identify all Alexa automations."""
         response = await AlexaAPI._static_request(
             "get", login, "/api/behaviors/automations", query={"limit": items}
@@ -1004,7 +1008,9 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def get_guard_state(login: AlexaLogin, entity_id: Text) -> Dict[Text, Any]:
+    async def get_guard_state(
+        login: AlexaLogin, entity_id: Text
+    ) -> Optional[Dict[Text, Any]]:
         """Get state of Alexa guard.
 
         Args:
@@ -1026,7 +1032,7 @@ class AlexaAPI:
     @_catch_all_exceptions
     async def static_set_guard_state(
         login: AlexaLogin, entity_id: Text, state: Text
-    ) -> Dict[Text, Any]:
+    ) -> Optional[Dict[Text, Any]]:
         """Set state of Alexa guard.
 
         Args:
@@ -1059,7 +1065,7 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def get_guard_details(login: AlexaLogin) -> Dict[Text, Any]:
+    async def get_guard_details(login: AlexaLogin) -> Optional[Dict[Text, Any]]:
         """Get Alexa Guard details.
 
         Args:
@@ -1079,7 +1085,7 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def get_notifications(login: AlexaLogin) -> Dict[Text, Any]:
+    async def get_notifications(login: AlexaLogin) -> Optional[Dict[Text, Any]]:
         """Get Alexa notifications.
 
         Args:
@@ -1099,7 +1105,7 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def set_notifications(login: AlexaLogin, data) -> Dict[Text, Any]:
+    async def set_notifications(login: AlexaLogin, data) -> Optional[Dict[Text, Any]]:
         """Update Alexa notification.
 
         Args:
@@ -1118,7 +1124,7 @@ class AlexaAPI:
 
     @staticmethod
     @_catch_all_exceptions
-    async def get_dnd_state(login: AlexaLogin) -> Dict[Text, Any]:
+    async def get_dnd_state(login: AlexaLogin) -> Optional[Dict[Text, Any]]:
         """Get Alexa DND states.
 
         Args:
