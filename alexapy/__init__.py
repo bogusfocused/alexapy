@@ -7,8 +7,10 @@ Python Package for controlling Alexa devices (echo dot, etc) programmatically.
 For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
-from importlib_metadata import version
-
+try:
+    from importlib_metadata import version
+except ModuleNotFoundError:
+    from importlib.metadata import version
 from .alexaapi import AlexaAPI
 from .alexalogin import AlexaLogin
 from .alexawebsocket import WebsocketEchoClient
