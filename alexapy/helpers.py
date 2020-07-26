@@ -9,9 +9,10 @@ Helpers.
 For more details about this api, please refer to the documentation at
 https://gitlab.com/keatontaylor/alexapy
 """
-import logging
 from asyncio import CancelledError
+from http.cookies import CookieError
 from json import JSONDecodeError
+import logging
 
 from alexapy.aiohttp import ClientConnectionError, ContentTypeError
 
@@ -118,7 +119,7 @@ def _catch_all_exceptions(func):
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             raise AlexapyConnectionError
-        except (JSONDecodeError) as ex:
+        except (JSONDecodeError, CookieError) as ex:
             _LOGGER.error(
                 "%s.%s(%s, %s): A login error occured: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
