@@ -10,12 +10,14 @@ https://gitlab.com/keatontaylor/alexapy
 
 from json import JSONDecodeError
 import logging
+import re
 from typing import Callable, List, Optional, Text, Tuple, Union
 from typing import Dict  # noqa pylint: disable=unused-import
 from urllib.parse import urlencode
 
 from bs4 import BeautifulSoup
 from simplejson import JSONDecodeError as SimpleJSONDecodeError
+from urllib.parse import urlparse
 
 from alexapy import aiohttp
 from alexapy.aiohttp.client_exceptions import ContentTypeError
@@ -445,9 +447,15 @@ class AlexaLogin:
                 _LOGGER.debug("Header: %s", dumps(self._headers))
 
             # submit post request with username/password and other needed info
-            post_resp = await self._session.post(
-                site, data=self._data, headers=self._headers, ssl=self._ssl,
-            )
+            if self.status.get("force_get"):
+                post_resp = await self._session.get(
+                    site, data=self._data, headers=self._headers, ssl=self._ssl,
+                )
+            else:
+                post_resp = await self._session.post(
+                    site, data=self._data, headers=self._headers, ssl=self._ssl,
+                )
+
             # headers need to be submitted to have the referer
             if self._debug:
                 import aiofiles
@@ -563,6 +571,7 @@ class AlexaLogin:
         form_tag = soup.find("form")
         missingcookies_tag = soup.find(id="ap_error_return_home")
         forgotpassword_tag = soup.find("form", {"name": "forgotPassword"})
+        polling_tag = soup.find(id="updatedChannelDetails")
         if self._debug:
             find_links()
 
@@ -669,8 +678,6 @@ class AlexaLogin:
             status["force_get"] = True
             status["ap_error_href"] = href
         elif javascript_authentication_tag:
-            import re
-
             message: Text = ""
 
             message = soup.find("span").getText()
@@ -689,6 +696,14 @@ class AlexaLogin:
             status["ap_error"] = True
             _LOGGER.warning(status["message"])
             status["login_failed"] = "forgot_password"
+        elif polling_tag:
+            status["force_get"] = True
+            status["message"] = self.status["message"]
+            approval_status = soup.find("input", {"id": "transactionApprovalStatus"})
+            _LOGGER.debug(
+                "Polling page detected: %s with %s", polling_tag, approval_status
+            )
+            status["approval_status"] = approval_status.get("value")
         else:
             _LOGGER.debug("Captcha/2FA not requested; confirming login.")
             if await self.test_loggedin():
@@ -733,13 +748,13 @@ class AlexaLogin:
                     )
         self.status = status
         # determine post url if not logged in
-        if form_tag and "login_successful" not in status:
+        if status.get("approval_status") == "TransactionCompleted":
+            site = self._data.get("openid.return_to")
+        elif form_tag and "login_successful" not in status:
             formsite: Text = form_tag.get("action")
             if self._debug:
                 _LOGGER.debug("Found form to process: %s", form_tag)
             if formsite and formsite == "verify":
-                import re
-
                 search_results = re.search(r"(.+)/(.*)", str(site))
                 assert search_results is not None
                 site = search_results.groups()[0] + "/verify"
@@ -753,8 +768,11 @@ class AlexaLogin:
                 _LOGGER.debug("Found post url to get; forcing get to %s", site)
                 self._lastreq = None
             elif formsite and formsite == "/ap/cvf/approval/poll":
-                site = form_tag.find("input", {"name": "openid.return_to"}).get("value")
-                _LOGGER.debug("Found url for openid.return_to %s", site)
+                self._data = self.get_inputs(soup, {"id": "pollingForm"})
+                url = urlparse(site)
+                site = f"{url.scheme}://{url.netloc}{formsite}"
+                # site = form_tag.find("input", {"name": "openid.return_to"}).get("value")
+                _LOGGER.debug("Found url for polling page %s", site)
             elif formsite:
                 site = formsite
                 _LOGGER.debug("Found post url to %s", site)
@@ -779,7 +797,7 @@ class AlexaLogin:
         verificationcode: Optional[Text] = (
             None if "verificationcode" not in data else data["verificationcode"]
         )
-        _LOGGER.debug("Preparing post to %s with input data: %s", site, data)
+        _LOGGER.debug("Preparing form submission to %s with input data: %s", site, data)
 
         #  add username and password to the data for post request
         #  check if there is an input field
