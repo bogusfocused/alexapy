@@ -424,17 +424,21 @@ class AlexaLogin:
         # This commented block can be used to read a file directly to process.
         # import aiofiles
 
-        # async with aiofiles.open("/config/anti-automation.html", "rb") as myfile:
+        # async with aiofiles.open("/config/anti-automation-js.html", "rb") as myfile:
+        # async with aiofiles.open(
+        #     "/config/Amazon-Password-Assistance.html", "rb"
+        # ) as myfile:
         #     html = await myfile.read()
         site = await self._process_page(html, site)
-        if not self.status.get("force_get"):
+        if not self.status.get("ap_error"):
             missing_params = self._populate_data(site, data)
             if self._debug:
                 from json import dumps  # pylint: disable=import-outside-toplevel
 
                 if missing_params:
                     _LOGGER.debug(
-                        "WARNING: Detected missing params: %s", missing_params
+                        "WARNING: Detected missing params: %s",
+                        [k for (k, v) in self._data.items() if v == ""],
                     )
                 _LOGGER.debug("Session Cookies:\n%s", self._print_session_cookies())
                 _LOGGER.debug("Submit Form Data: %s", dumps(self._data))
@@ -558,6 +562,7 @@ class AlexaLogin:
         forms_tag = soup.findAll("form")
         form_tag = soup.find("form")
         missingcookies_tag = soup.find(id="ap_error_return_home")
+        forgotpassword_tag = soup.find("form", {"name": "forgotPassword"})
         if self._debug:
             find_links()
 
@@ -674,6 +679,16 @@ class AlexaLogin:
             status["force_get"] = True
             status["message"] = re.sub("(\\s)+", "\\1", message)
             _LOGGER.debug("Javascript Authentication page detected: %s", message)
+        elif forgotpassword_tag:
+            status["message"] = (
+                "Forgot password page detected; "
+                "Amazon has detected too many failed logins. "
+                "Please check to see if Amazon requires any further action. "
+                "You may have to wait before retrying."
+            )
+            status["ap_error"] = True
+            _LOGGER.warning(status["message"])
+            status["login_failed"] = "forgot_password"
         else:
             _LOGGER.debug("Captcha/2FA not requested; confirming login.")
             if await self.test_loggedin():
@@ -707,7 +722,7 @@ class AlexaLogin:
 
             else:
                 _LOGGER.debug("Login failed; check credentials")
-                status["login_failed"] = True
+                status["login_failed"] = "login_failed"
                 assert self._data is not None
                 if "" in self._data.values():
                     missing = [k for (k, v) in self._data.items() if v == ""]
