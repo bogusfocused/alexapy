@@ -434,7 +434,8 @@ class AlexaLogin:
 
                 if missing_params:
                     _LOGGER.debug(
-                        "WARNING: Detected missing params: %s", missing_params
+                        "WARNING: Detected missing params: %s",
+                        [k for (k, v) in self._data.items() if v == ""],
                     )
                 _LOGGER.debug("Session Cookies:\n%s", self._print_session_cookies())
                 _LOGGER.debug("Submit Form Data: %s", dumps(self._data))
