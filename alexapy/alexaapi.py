@@ -481,6 +481,7 @@ class AlexaAPI:
         provider_id: Text,
         search_phrase: Text,
         customer_id: Optional[Text] = None,
+        timer: Optional[int] = None,
         queue_delay: float = 1.5,
     ) -> None:
         """Play music based on search.
@@ -492,18 +493,30 @@ class AlexaAPI:
                              specified this defaults to the logged in user. Used
                              with households where others may have their own
                              music.
+            timer (Optional[int]): Number of seconds to play before stopping.
             queue_delay (float, optional): [description]. Defaults to 1.5.
 
         """
         customer_id = self._login.customer_id if customer_id is None else customer_id
-        await self.send_sequence(
-            "Alexa.Music.PlaySearchPhrase",
-            customer_id=customer_id,
-            searchPhrase=search_phrase,
-            sanitizedSearchPhrase=search_phrase,
-            musicProviderId=provider_id,
-            queue_delay=queue_delay,
-        )
+        if timer:
+            await self.send_sequence(
+                "Alexa.Music.PlaySearchPhrase",
+                customer_id=customer_id,
+                searchPhrase=search_phrase,
+                sanitizedSearchPhrase=search_phrase,
+                musicProviderId=provider_id,
+                waitTimeInSeconds=timer,
+                queue_delay=queue_delay,
+            )
+        else:
+            await self.send_sequence(
+                "Alexa.Music.PlaySearchPhrase",
+                customer_id=customer_id,
+                searchPhrase=search_phrase,
+                sanitizedSearchPhrase=search_phrase,
+                musicProviderId=provider_id,
+                queue_delay=queue_delay,
+            )
 
     @_catch_all_exceptions
     async def play_sound(
