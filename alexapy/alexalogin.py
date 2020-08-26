@@ -471,7 +471,7 @@ class AlexaLogin:
             for item in resp.history:
                 _LOGGER.debug("%s: redirected from\n%s", item.method, item.url)
             self._headers["Referer"] = str(resp.url)
-        url = resp.request_info.url
+        url = str(resp.request_info.url)
         method = resp.request_info.method
         status = resp.status
         reason = resp.reason
@@ -776,7 +776,7 @@ class AlexaLogin:
             elif formsite:
                 site = formsite
                 _LOGGER.debug("Found post url to %s", site)
-        return site
+        return str(site)
 
     def _populate_data(self, site: Text, data: Dict[str, Optional[str]]) -> bool:
         """Populate self._data with info from data."""
