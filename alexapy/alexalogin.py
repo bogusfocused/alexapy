@@ -80,11 +80,21 @@ class AlexaLogin:
         self._site: Optional[Text] = None
         self._create_session()
         self._close_requested = False
+        self._customer_id: Optional[Text] = None
 
     @property
     def email(self) -> Text:
         """Return email or mobile account for this Login."""
         return self._email
+
+    @property
+    def customer_id(self) -> Optional[Text]:
+        """Return customer_id for this Login."""
+        return self._customer_id
+
+    @customer_id.setter
+    def customer_id(self, value: Optional[Text]) -> None:
+        self._customer_id = value
 
     @property
     def session(self) -> Optional[aiohttp.ClientSession]:
@@ -290,11 +300,14 @@ class AlexaLogin:
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
             return False
+        self.customer_id = json.get("authentication", {}).get("customerId")
         if email != "" and email.lower() == self._email.lower():
-            _LOGGER.debug("Logged in as %s", email)
+            _LOGGER.debug("Logged in as %s with id: %s", email, self.customer_id)
             return True
         if email == "":
-            _LOGGER.debug("Logged in as mobile account %s", email)
+            _LOGGER.debug(
+                "Logged in as mobile account %s with %s", email, self.customer_id
+            )
             return True
         _LOGGER.debug("Not logged in due to email mismatch")
         await self.reset()
@@ -471,7 +484,7 @@ class AlexaLogin:
             for item in resp.history:
                 _LOGGER.debug("%s: redirected from\n%s", item.method, item.url)
             self._headers["Referer"] = str(resp.url)
-        url = resp.request_info.url
+        url = str(resp.request_info.url)
         method = resp.request_info.method
         status = resp.status
         reason = resp.reason
@@ -776,7 +789,7 @@ class AlexaLogin:
             elif formsite:
                 site = formsite
                 _LOGGER.debug("Found post url to %s", site)
-        return site
+        return str(site)
 
     def _populate_data(self, site: Text, data: Dict[str, Optional[str]]) -> bool:
         """Populate self._data with info from data."""

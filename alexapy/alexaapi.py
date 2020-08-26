@@ -271,7 +271,11 @@ class AlexaAPI:
 
     @_catch_all_exceptions
     async def send_sequence(
-        self, sequence: Text, queue_delay: float = 1.5, **kwargs
+        self,
+        sequence: Text,
+        customer_id: Optional[Text] = None,
+        queue_delay: float = 1.5,
+        **kwargs,
     ) -> None:
         """Send sequence command.
 
@@ -280,8 +284,8 @@ class AlexaAPI:
 
         Args:
         sequence (string): The Alexa sequence.  Supported list below.
-        customerId (string): CustomerId to use for authorization. When none
-                             specified this defaults to the device owner. Used
+        customer_id (string): CustomerId to use for authorization. When none
+                             specified this defaults to the logged in user. Used
                              with households where others may have their own
                              music.
         queue_delay (float, optional): The number of seconds to wait
@@ -316,7 +320,9 @@ class AlexaAPI:
             "deviceType": self._device._device_type,
             "deviceSerialNumber": self._device.unique_id,
             "locale": (self._device._locale if self._device._locale else "en-US"),
-            "customerId": self._device._device_owner_customer_id,
+            "customerId": self._login.customer_id
+            if customer_id is None
+            else customer_id,
         }
         root_node = {}
         if kwargs is not None:
@@ -339,13 +345,22 @@ class AlexaAPI:
         await self.run_behavior(node_data, queue_delay=queue_delay)
 
     @_catch_all_exceptions
-    async def run_skill(self, skill_id: Text, queue_delay: float = 0) -> None:
+    async def run_skill(
+        self,
+        skill_id: Text,
+        customer_id: Optional[Text] = None,
+        queue_delay: float = 0,
+    ) -> None:
         """Run Alexa skill.
 
         This allows running of defined Alexa skill.
 
         Args:
             skill_id (string): The full skill id.
+            customer_id (string): CustomerId to use for authorization. When none
+                             specified this defaults to the logged in user. Used
+                             with households where others may have their own
+                             music.
             queue_delay (float, optional): The number of seconds to wait
                                         for commands to queue together.
                                         Defaults to 1.5.
@@ -358,7 +373,9 @@ class AlexaAPI:
                 "deviceSerialNumber": self._device.unique_id,
             },
             "locale": (self._device._locale if self._device._locale else "en-US"),
-            "customerId": self._device._device_owner_customer_id,
+            "customerId": self._login.customer_id
+            if customer_id is None
+            else customer_id,
             "connectionRequest": {
                 "uri": "connection://AMAZON.Launch/" + skill_id,
                 "input": {},
@@ -372,13 +389,22 @@ class AlexaAPI:
         await self.run_behavior(node_data, queue_delay=queue_delay)
 
     @_catch_all_exceptions
-    async def run_routine(self, utterance: Text, queue_delay: float = 1.5) -> None:
+    async def run_routine(
+        self,
+        utterance: Text,
+        customer_id: Optional[Text] = None,
+        queue_delay: float = 1.5,
+    ) -> None:
         """Run Alexa automation routine.
 
         This allows running of defined Alexa automation routines.
 
         Args:
             utterance (string): The Alexa utterance to run the routine.
+            customer_id (string): CustomerId to use for authorization. When none
+                             specified this defaults to the logged in user. Used
+                             with households where others may have their own
+                             music.
             queue_delay (float, optional): The number of seconds to wait
                                         for commands to queue together.
                                         Defaults to 1.5.
@@ -440,39 +466,69 @@ class AlexaAPI:
                 new_nodes.append(node)
             sequence["startNode"]["nodesToExecute"] = new_nodes
             await self.run_behavior(
-                sequence["startNode"]["nodesToExecute"], queue_delay=queue_delay
+                sequence["startNode"]["nodesToExecute"], queue_delay=queue_delay,
             )
         else:
             # Single entry with no nodesToExecute
             _populate_device_info(sequence["startNode"])
-            await self.run_behavior(sequence["startNode"], queue_delay=queue_delay)
+            await self.run_behavior(
+                sequence["startNode"], queue_delay=queue_delay,
+            )
 
     @_catch_all_exceptions
     async def play_music(
         self,
         provider_id: Text,
         search_phrase: Text,
-        customer_id: Text = None,
+        customer_id: Optional[Text] = None,
+        timer: Optional[int] = None,
         queue_delay: float = 1.5,
     ) -> None:
-        """Play Music based on search."""
-        await self.send_sequence(
-            "Alexa.Music.PlaySearchPhrase",
-            customerId=customer_id,
-            searchPhrase=search_phrase,
-            sanitizedSearchPhrase=search_phrase,
-            musicProviderId=provider_id,
-            queue_delay=queue_delay,
-        )
+        """Play music based on search.
+
+        Args:
+            provider_id (Text): Amazon music provider.
+            search_phrase (Text): Phrase to be searched for
+            customer_id (Optional[Text], optional): CustomerId to use for authorization. When none
+                             specified this defaults to the logged in user. Used
+                             with households where others may have their own
+                             music.
+            timer (Optional[int]): Number of seconds to play before stopping.
+            queue_delay (float, optional): [description]. Defaults to 1.5.
+
+        """
+        customer_id = self._login.customer_id if customer_id is None else customer_id
+        if timer:
+            await self.send_sequence(
+                "Alexa.Music.PlaySearchPhrase",
+                customer_id=customer_id,
+                searchPhrase=search_phrase,
+                sanitizedSearchPhrase=search_phrase,
+                musicProviderId=provider_id,
+                waitTimeInSeconds=timer,
+                queue_delay=queue_delay,
+            )
+        else:
+            await self.send_sequence(
+                "Alexa.Music.PlaySearchPhrase",
+                customer_id=customer_id,
+                searchPhrase=search_phrase,
+                sanitizedSearchPhrase=search_phrase,
+                musicProviderId=provider_id,
+                queue_delay=queue_delay,
+            )
 
     @_catch_all_exceptions
     async def play_sound(
-        self, sound_string_id: Text, customer_id: Text = None, queue_delay: float = 1.5
+        self,
+        sound_string_id: Text,
+        customer_id: Optional[Text] = None,
+        queue_delay: float = 1.5,
     ) -> None:
         """Play Alexa sound."""
         await self.send_sequence(
             "Alexa.Sound",
-            customerId=customer_id,
+            customer_id=self._login.customer_id if customer_id is None else customer_id,
             soundStringId=sound_string_id,
             skillId="amzn1.ask.1p.sound",
             queue_delay=queue_delay,
@@ -481,7 +537,7 @@ class AlexaAPI:
     @_catch_all_exceptions
     async def stop(
         self,
-        customer_id: Text = None,
+        customer_id: Optional[Text] = None,
         queue_delay: float = 1.5,
         all_devices: bool = False,
     ) -> None:
@@ -516,7 +572,7 @@ class AlexaAPI:
         await self.send_sequence(
             "Alexa.DeviceControls.Stop",
             skillId="amzn1.ask.1p.alexadevicecontrols",
-            customerId=customer_id,
+            customer_id=self._login.customer_id if customer_id is None else customer_id,
             queue_delay=queue_delay,
             **kwargs,
         )
@@ -568,7 +624,7 @@ class AlexaAPI:
     async def send_tts(
         self,
         message: Text,
-        customer_id: Text = None,
+        customer_id: Optional[Text] = None,
         targets: Optional[List[Text]] = None,
         queue_delay: float = 1.5,
     ) -> None:
@@ -583,7 +639,7 @@ class AlexaAPI:
                             must start with `alexa.cannedtts.speak` as discovered
                             in the routines.
         customer_id (string): CustomerId to use for authorization. When none
-                             specified this defaults to the device owner. Used
+                             specified this defaults to the logged in user. Used
                              with households where others may have their own
                              music.
         targets (list(string)): WARNING: This is currently non functional due
@@ -602,19 +658,25 @@ class AlexaAPI:
         if message.startswith("alexa.cannedtts.speak"):
             await self.send_sequence(
                 "Alexa.CannedTts.Speak",
-                customerId=customer_id,
+                customer_id=self._login.customer_id
+                if customer_id is None
+                else customer_id,
                 cannedTtsStringId=message,
                 skillId="amzn1.ask.1p.saysomething",
                 queue_delay=queue_delay,
             )
         else:
             target = {
-                "customerId": customer_id,
+                "customerId": self._login.customer_id
+                if customer_id is None
+                else customer_id,
                 "devices": self.process_targets(targets),
             }
             await self.send_sequence(
                 "Alexa.Speak",
-                customerId=customer_id,
+                customer_id=self._login.customer_id
+                if customer_id is None
+                else customer_id,
                 textToSpeak=message,
                 target=target,
                 skillId="amzn1.ask.1p.saysomething",
@@ -627,7 +689,7 @@ class AlexaAPI:
         message: Text,
         method: Text = "all",
         title: Text = "Announcement",
-        customer_id: Text = None,
+        customer_id: Optional[Text] = None,
         targets: Optional[List[Text]] = None,
         queue_delay: float = 1.5,
     ) -> None:
@@ -642,7 +704,7 @@ class AlexaAPI:
         method (string): speak, show, or all
         title (string): title to display on Echo show
         customer_id (string): CustomerId to use for authorization. When none
-                             specified this defaults to the device owner. Used
+                             specified this defaults to the logged in user. Used
                              with households where others may have their own
                              music.
         targets (list(string)): List of serialNumber or accountName to send the
@@ -672,10 +734,15 @@ class AlexaAPI:
                 "speak": speak,
             }
         ]
-        target = {"customerId": customer_id, "devices": self.process_targets(targets)}
+        target = {
+            "customerId": self._login.customer_id
+            if customer_id is None
+            else customer_id,
+            "devices": self.process_targets(targets),
+        }
         await self.send_sequence(
             "AlexaAnnouncement",
-            customerId=customer_id,
+            customer_id=self._login.customer_id if customer_id is None else customer_id,
             expireAfter="PT5S",
             content=content,
             target=target,
@@ -688,7 +755,7 @@ class AlexaAPI:
         self,
         message: Text,
         title: Text = "AlexaAPI Message",
-        customer_id: Text = None,
+        customer_id: Optional[Text] = None,
         queue_delay: float = 1.5,
     ) -> None:
         """Send mobile push to Alexa app.
@@ -700,7 +767,7 @@ class AlexaAPI:
         message (string): The message to push to the mobile device.
         title (string): Title for push notification
         customer_id (string): CustomerId to use for sending. When none
-                              specified this defaults to the device owner.
+                              specified this defaults to the logged in user.
         queue_delay (float, optional): The number of seconds to wait
                                         for commands to queue together.
                                         Defaults to 1.5.
@@ -709,10 +776,8 @@ class AlexaAPI:
         """
         await self.send_sequence(
             "Alexa.Notifications.SendMobilePush",
-            customerId=(
-                customer_id
-                if customer_id is not None
-                else self._device._device_owner_customer_id
+            customer_id=(
+                self._login.customer_id if customer_id is None else customer_id
             ),
             notificationMessage=message,
             alexaUrl="#v2/behaviors",
@@ -726,7 +791,7 @@ class AlexaAPI:
         self,
         message: Text,
         title: Text = "AlexaAPI Dropin Notification",
-        customer_id: Text = None,
+        customer_id: Optional[Text] = None,
         queue_delay: float = 1.5,
     ) -> None:
         """Send dropin notification to Alexa app for Alexa device.
@@ -738,7 +803,7 @@ class AlexaAPI:
         message (string): The message to push to the mobile device.
         title (string): Title for push notification
         customer_id (string): CustomerId to use for sending. When none
-                              specified this defaults to the device owner.
+                              specified this defaults to the logged in user.
         queue_delay (float, optional): The number of seconds to wait
                                         for commands to queue together.
                                         Defaults to 1.5.
@@ -747,10 +812,8 @@ class AlexaAPI:
         """
         await self.send_sequence(
             "Alexa.Notifications.DropIn",
-            customerId=(
-                customer_id
-                if customer_id is not None
-                else self._device._device_owner_customer_id
+            customer_id=(
+                self._login.customer_id if customer_id is None else customer_id
             ),
             notificationMessage=message,
             alexaUrl="#v2/comms/conversation-list?showDropInDialog=true",
@@ -803,10 +866,31 @@ class AlexaAPI:
         await self.set_media({"type": "RewindCommand"})
 
     @_catch_all_exceptions
-    async def set_volume(self, volume: float, queue_delay: float = 1.5) -> None:
-        """Set volume."""
+    async def set_volume(
+        self,
+        volume: float,
+        customer_id: Optional[Text] = None,
+        queue_delay: float = 1.5,
+    ) -> None:
+        """Set volume.
+
+        Args:
+        volume (float): The volume between 0 and 1.
+        customer_id (string): CustomerId to use for sending. When none
+                              specified this defaults to the logged in user.
+        queue_delay (float, optional): The number of seconds to wait
+                                        for commands to queue together.
+                                        Defaults to 1.5.
+                                        Must be positive.
+
+        """
         await self.send_sequence(
-            "Alexa.DeviceControls.Volume", value=volume * 100, queue_delay=queue_delay
+            "Alexa.DeviceControls.Volume",
+            customer_id=(
+                self._login.customer_id if customer_id is None else customer_id
+            ),
+            value=volume * 100,
+            queue_delay=queue_delay,
         )
 
     @_catch_all_exceptions
