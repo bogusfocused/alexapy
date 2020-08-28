@@ -10,20 +10,23 @@ https://gitlab.com/keatontaylor/alexapy
 
 from json import JSONDecodeError
 import logging
+import os
+import pickle
 import re
 from typing import Callable, List, Optional, Text, Tuple, Union
 from typing import Dict  # noqa pylint: disable=unused-import
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
+import aiofiles
+from aiofiles import os as aioos
 from bs4 import BeautifulSoup
 from simplejson import JSONDecodeError as SimpleJSONDecodeError
-from urllib.parse import urlparse
 
 from alexapy import aiohttp
 from alexapy.aiohttp.client_exceptions import ContentTypeError
 
 from .const import EXCEPTION_TEMPLATE
-from .helpers import _catch_all_exceptions
+from .helpers import _catch_all_exceptions, delete_cookie
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -123,9 +126,6 @@ class AlexaLogin:
     async def login_with_cookie(self) -> None:
         # pylint: disable=import-outside-toplevel
         """Attempt to login after loading cookie."""
-        import pickle
-        import os
-        import aiofiles
         from requests.cookies import RequestsCookieJar
         from collections import defaultdict
 
@@ -138,16 +138,7 @@ class AlexaLogin:
                 if not os.path.exists(cookiefile):
                     continue
                 if loaded and cookiefile != self._cookiefile[0]:
-                    _LOGGER.debug("Deleting old cookiefile %s ", cookiefile)
-                    try:
-                        from aiofiles import os
-
-                        await os.remove(cookiefile)
-                    except (OSError, EOFError, TypeError, AttributeError) as ex:
-                        _LOGGER.debug(
-                            "Error deleting cookie: %s",
-                            EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
-                        )
+                    await delete_cookie(cookiefile)
                 _LOGGER.debug("Trying to load pickled cookie from file %s", cookiefile)
                 try:
                     async with aiofiles.open(cookiefile, "rb") as myfile:
@@ -203,12 +194,12 @@ class AlexaLogin:
                             "Migrating old cookiefile to %s ", self._cookiefile[0]
                         )
                         try:
-                            from aiofiles import os
-
-                            await os.rename(cookiefile, self._cookiefile[0])
+                            await aioos.rename(cookiefile, self._cookiefile[0])
                         except (OSError, EOFError, TypeError, AttributeError) as ex:
                             _LOGGER.debug(
-                                "Error renaming cookie: %s",
+                                "Error moving cookie from %s to %s: %s",
+                                cookiefile,
+                                self._cookiefile[0],
                                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
                             )
         await self.login(cookies=self._cookies)
@@ -236,20 +227,10 @@ class AlexaLogin:
         self._site = None
         self._create_session()
         self._close_requested = False
-        import os
-        from aiofiles import os as aioos
 
         for cookiefile in self._cookiefile:
             if (cookiefile) and os.path.exists(cookiefile):
-                try:
-                    _LOGGER.debug("Trying to delete cookie file %s", cookiefile)
-                    await aioos.remove(cookiefile)
-                except OSError as ex:
-                    _LOGGER.debug(
-                        "Error deleting cookie %s: %s",
-                        cookiefile,
-                        EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
-                    )
+                await delete_cookie(cookiefile)
 
     @classmethod
     def get_inputs(cls, soup: BeautifulSoup, searchfield=None) -> Dict[str, str]:
@@ -432,8 +413,6 @@ class AlexaLogin:
             site = await self._process_resp(resp)
         html: Text = await resp.text()
         if self._debug:
-            import aiofiles
-
             async with aiofiles.open(self._debugget, mode="wb") as localfile:
                 await localfile.write(await resp.read())
         # This commented block can be used to read a file directly to process.
@@ -471,8 +450,6 @@ class AlexaLogin:
 
             # headers need to be submitted to have the referer
             if self._debug:
-                import aiofiles
-
                 async with aiofiles.open(self._debugpost, mode="wb") as localfile:
                     await localfile.write(await post_resp.read())
             self._lastreq = post_resp
@@ -728,23 +705,20 @@ class AlexaLogin:
                 if self._debug:
                     _LOGGER.debug("Saving cookie: %s", self._print_session_cookies())
                 for cookiefile in self._cookiefile:
-                    try:
-                        import os
-                        from aiofiles import os as aioos
-
-                        if cookiefile == self._cookiefile[0]:
-                            cookie_jar = self._session.cookie_jar
-                            assert isinstance(cookie_jar, aiohttp.CookieJar)
+                    if cookiefile == self._cookiefile[0]:
+                        cookie_jar = self._session.cookie_jar
+                        assert isinstance(cookie_jar, aiohttp.CookieJar)
+                        try:
                             cookie_jar.save(self._cookiefile[0])
-                        elif (cookiefile) and os.path.exists(cookiefile):
-                            _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
-                            await aioos.remove(cookiefile)
-                    except OSError as ex:
-                        _LOGGER.debug(
-                            "Error saving pickled cookie to %s: %s",
-                            self._cookiefile[0],
-                            EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
-                        )
+                        except (OSError, EOFError, TypeError, AttributeError) as ex:
+                            _LOGGER.debug(
+                                "Error saving pickled cookie to %s: %s",
+                                self._cookiefile[0],
+                                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                            )
+                    elif (cookiefile) and os.path.exists(cookiefile):
+                        _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
+                        await delete_cookie(cookiefile)
                 #  remove extraneous Content-Type to avoid 500 errors
                 self._headers.pop("Content-Type", None)
 

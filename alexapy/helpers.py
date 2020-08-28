@@ -13,6 +13,11 @@ from asyncio import CancelledError
 from http.cookies import CookieError
 from json import JSONDecodeError
 import logging
+import os
+
+import aiofiles.os as aioos
+
+from typing import Optional, Union, Text
 
 from alexapy.aiohttp import ClientConnectionError, ContentTypeError
 
@@ -26,7 +31,7 @@ from .errors import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def hide_email(email):
+def hide_email(email: Text) -> Text:
     """Obfuscate email."""
     part = email.split("@")
     if len(part) > 1:
@@ -41,7 +46,7 @@ def hide_email(email):
     return hide_serial(email)
 
 
-def hide_serial(item):
+def hide_serial(item: Optional[Union[dict, str, list]]) -> Union[dict, str, list]:
     """Obfuscate serial."""
     if item is None:
         return ""
@@ -164,3 +169,23 @@ def _catch_all_exceptions(func):
             # return None
 
     return wrapper
+
+
+async def delete_cookie(cookiefile: Text) -> None:
+    """Delete a cookie.
+
+    Args:
+        cookiefile (Text): Path to cookie
+
+    """
+    _LOGGER.debug("Deleting cookiefile %s ", cookiefile)
+    try:
+        try:
+            await aioos.remove(cookiefile)
+        except AttributeError:
+            os.remove(cookiefile)
+    except (OSError, EOFError, TypeError, AttributeError) as ex:
+        _LOGGER.debug(
+            "Error deleting cookie: %s; please manually remove",
+            EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+        )
