@@ -19,7 +19,7 @@ from .errors import (
     AlexapyLoginCloseRequested,
     AlexapyLoginError,
 )
-from .helpers import hide_email, hide_serial
+from .helpers import hide_email, hide_serial, obfuscate
 
 __version__ = version("alexapy")
 
@@ -32,5 +32,6 @@ __all__ = [
     "WebsocketEchoClient",
     "hide_email",
     "hide_serial",
+    "obfuscate",
     "__version__",
 ]

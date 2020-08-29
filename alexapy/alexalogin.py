@@ -26,7 +26,7 @@ from alexapy import aiohttp
 from alexapy.aiohttp.client_exceptions import ContentTypeError
 
 from .const import EXCEPTION_TEMPLATE
-from .helpers import _catch_all_exceptions, delete_cookie
+from .helpers import _catch_all_exceptions, delete_cookie, obfuscate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -435,7 +435,7 @@ class AlexaLogin:
                         [k for (k, v) in self._data.items() if v == ""],
                     )
                 _LOGGER.debug("Session Cookies:\n%s", self._print_session_cookies())
-                _LOGGER.debug("Submit Form Data: %s", dumps(self._data))
+                _LOGGER.debug("Submit Form Data: %s", dumps(obfuscate(self._data)))
                 _LOGGER.debug("Header: %s", dumps(self._headers))
 
             # submit post request with username/password and other needed info
