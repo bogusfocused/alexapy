@@ -115,7 +115,7 @@ def _catch_all_exceptions(func):
         try:
             return await func(*args, **kwargs)
         except (ClientConnectionError, KeyError) as ex:
-            _LOGGER.error(
+            _LOGGER.warning(
                 "%s.%s(%s, %s): A connection error occured: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
@@ -125,7 +125,7 @@ def _catch_all_exceptions(func):
             )
             raise AlexapyConnectionError
         except (JSONDecodeError, CookieError) as ex:
-            _LOGGER.error(
+            _LOGGER.warning(
                 "%s.%s(%s, %s): A login error occured: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
@@ -135,7 +135,7 @@ def _catch_all_exceptions(func):
             )
             raise AlexapyLoginError
         except (ContentTypeError) as ex:
-            _LOGGER.error(
+            _LOGGER.warning(
                 "%s.%s(%s, %s): A login error occured; Amazon may want you to change your password: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
@@ -157,7 +157,7 @@ def _catch_all_exceptions(func):
         except AlexapyLoginCloseRequested:
             raise
         except Exception as ex:  # pylint: disable=broad-except
-            _LOGGER.error(
+            _LOGGER.warning(
                 "%s.%s(%s, %s): An error occured accessing AlexaAPI: %s",
                 func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
