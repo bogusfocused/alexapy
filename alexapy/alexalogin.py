@@ -10,20 +10,23 @@ https://gitlab.com/keatontaylor/alexapy
 
 from json import JSONDecodeError
 import logging
+import os
+import pickle
 import re
 from typing import Callable, List, Optional, Text, Tuple, Union
 from typing import Dict  # noqa pylint: disable=unused-import
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
+import aiofiles
+from aiofiles import os as aioos
 from bs4 import BeautifulSoup
 from simplejson import JSONDecodeError as SimpleJSONDecodeError
-from urllib.parse import urlparse
 
 from alexapy import aiohttp
 from alexapy.aiohttp.client_exceptions import ContentTypeError
 
 from .const import EXCEPTION_TEMPLATE
-from .helpers import _catch_all_exceptions
+from .helpers import _catch_all_exceptions, delete_cookie, obfuscate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -123,9 +126,6 @@ class AlexaLogin:
     async def login_with_cookie(self) -> None:
         # pylint: disable=import-outside-toplevel
         """Attempt to login after loading cookie."""
-        import pickle
-        import os
-        import aiofiles
         from requests.cookies import RequestsCookieJar
         from collections import defaultdict
 
@@ -138,16 +138,7 @@ class AlexaLogin:
                 if not os.path.exists(cookiefile):
                     continue
                 if loaded and cookiefile != self._cookiefile[0]:
-                    _LOGGER.debug("Deleting old cookiefile %s ", cookiefile)
-                    try:
-                        from aiofiles import os
-
-                        await os.remove(cookiefile)
-                    except (OSError, EOFError, TypeError, AttributeError) as ex:
-                        _LOGGER.debug(
-                            "Error deleting cookie: %s",
-                            EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
-                        )
+                    await delete_cookie(cookiefile)
                 _LOGGER.debug("Trying to load pickled cookie from file %s", cookiefile)
                 try:
                     async with aiofiles.open(cookiefile, "rb") as myfile:
@@ -203,12 +194,12 @@ class AlexaLogin:
                             "Migrating old cookiefile to %s ", self._cookiefile[0]
                         )
                         try:
-                            from aiofiles import os
-
-                            await os.rename(cookiefile, self._cookiefile[0])
+                            await aioos.rename(cookiefile, self._cookiefile[0])
                         except (OSError, EOFError, TypeError, AttributeError) as ex:
                             _LOGGER.debug(
-                                "Error renaming cookie: %s",
+                                "Error moving cookie from %s to %s: %s",
+                                cookiefile,
+                                self._cookiefile[0],
                                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
                             )
         await self.login(cookies=self._cookies)
@@ -236,20 +227,10 @@ class AlexaLogin:
         self._site = None
         self._create_session()
         self._close_requested = False
-        import os
-        from aiofiles import os as aioos
 
         for cookiefile in self._cookiefile:
             if (cookiefile) and os.path.exists(cookiefile):
-                try:
-                    _LOGGER.debug("Trying to delete cookie file %s", cookiefile)
-                    await aioos.remove(cookiefile)
-                except OSError as ex:
-                    _LOGGER.debug(
-                        "Error deleting cookie %s: %s",
-                        cookiefile,
-                        EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
-                    )
+                await delete_cookie(cookiefile)
 
     @classmethod
     def get_inputs(cls, soup: BeautifulSoup, searchfield=None) -> Dict[str, str]:
@@ -320,7 +301,7 @@ class AlexaLogin:
                 "User-Agent": (
                     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) "
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/83.0.4103.116 Safari/537.36"
+                    "Chrome/84.0.4147.135 Safari/537.36"
                 ),
                 "Accept": (
                     "text/html,application/xhtml+xml, "
@@ -432,8 +413,6 @@ class AlexaLogin:
             site = await self._process_resp(resp)
         html: Text = await resp.text()
         if self._debug:
-            import aiofiles
-
             async with aiofiles.open(self._debugget, mode="wb") as localfile:
                 await localfile.write(await resp.read())
         # This commented block can be used to read a file directly to process.
@@ -456,7 +435,7 @@ class AlexaLogin:
                         [k for (k, v) in self._data.items() if v == ""],
                     )
                 _LOGGER.debug("Session Cookies:\n%s", self._print_session_cookies())
-                _LOGGER.debug("Submit Form Data: %s", dumps(self._data))
+                _LOGGER.debug("Submit Form Data: %s", dumps(obfuscate(self._data)))
                 _LOGGER.debug("Header: %s", dumps(self._headers))
 
             # submit post request with username/password and other needed info
@@ -471,8 +450,6 @@ class AlexaLogin:
 
             # headers need to be submitted to have the referer
             if self._debug:
-                import aiofiles
-
                 async with aiofiles.open(self._debugpost, mode="wb") as localfile:
                     await localfile.write(await post_resp.read())
             self._lastreq = post_resp
@@ -728,23 +705,20 @@ class AlexaLogin:
                 if self._debug:
                     _LOGGER.debug("Saving cookie: %s", self._print_session_cookies())
                 for cookiefile in self._cookiefile:
-                    try:
-                        import os
-                        from aiofiles import os as aioos
-
-                        if cookiefile == self._cookiefile[0]:
-                            cookie_jar = self._session.cookie_jar
-                            assert isinstance(cookie_jar, aiohttp.CookieJar)
+                    if cookiefile == self._cookiefile[0]:
+                        cookie_jar = self._session.cookie_jar
+                        assert isinstance(cookie_jar, aiohttp.CookieJar)
+                        try:
                             cookie_jar.save(self._cookiefile[0])
-                        elif (cookiefile) and os.path.exists(cookiefile):
-                            _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
-                            await aioos.remove(cookiefile)
-                    except OSError as ex:
-                        _LOGGER.debug(
-                            "Error saving pickled cookie to %s: %s",
-                            self._cookiefile[0],
-                            EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
-                        )
+                        except (OSError, EOFError, TypeError, AttributeError) as ex:
+                            _LOGGER.debug(
+                                "Error saving pickled cookie to %s: %s",
+                                self._cookiefile[0],
+                                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                            )
+                    elif (cookiefile) and os.path.exists(cookiefile):
+                        _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
+                        await delete_cookie(cookiefile)
                 #  remove extraneous Content-Type to avoid 500 errors
                 self._headers.pop("Content-Type", None)
 
@@ -786,6 +760,9 @@ class AlexaLogin:
                 site = f"{url.scheme}://{url.netloc}{formsite}"
                 # site = form_tag.find("input", {"name": "openid.return_to"}).get("value")
                 _LOGGER.debug("Found url for polling page %s", site)
+            elif formsite and forgotpassword_tag:
+                site = self._prefix + self._url
+                _LOGGER.debug("Restarting login process %s", site)
             elif formsite:
                 site = formsite
                 _LOGGER.debug("Found post url to %s", site)
@@ -794,31 +771,29 @@ class AlexaLogin:
     def _populate_data(self, site: Text, data: Dict[str, Optional[str]]) -> bool:
         """Populate self._data with info from data."""
         # pull data from configurator
-        password: Optional[Text] = (
-            None if "password" not in data else data["password"]
+        password: Optional[Text] = data.get("password")
+        captcha: Optional[Text] = data.get("captcha")
+        securitycode: Optional[Text] = data.get("securitycode")
+        claimsoption: Optional[Text] = data.get("claimsoption")
+        authopt: Optional[Text] = data.get("authselectoption")
+        verificationcode: Optional[Text] = data.get("verificationcode")
+        _LOGGER.debug(
+            "Preparing form submission to %s with input data: %s", site, obfuscate(data)
         )
-        captcha: Optional[Text] = (None if "captcha" not in data else data["captcha"])
-        securitycode: Optional[Text] = (
-            None if "securitycode" not in data else data["securitycode"]
-        )
-        claimsoption: Optional[Text] = (
-            None if "claimsoption" not in data else data["claimsoption"]
-        )
-        authopt: Optional[Text] = (
-            None if "authselectoption" not in data else data["authselectoption"]
-        )
-        verificationcode: Optional[Text] = (
-            None if "verificationcode" not in data else data["verificationcode"]
-        )
-        _LOGGER.debug("Preparing form submission to %s with input data: %s", site, data)
 
-        #  add username and password to the data for post request
+        #  add username and password to self._data for post request
+        #  self._data is scraped from the form page in _process_page
         #  check if there is an input field
         if self._data:
             if "email" in self._data and self._data["email"] == "":
                 self._data["email"] = self._email
             if "password" in self._data and self._data["password"] == "":
-                self._data["password"] = self._password if not password else password
+                # add the otp to the password if available
+                self._data["password"] = (
+                    self._password
+                    if not password
+                    else password + data.get("securitycode", "")
+                )
             if "rememberMe" in self._data:
                 self._data["rememberMe"] = "true"
             if captcha is not None and "guess" in self._data:
