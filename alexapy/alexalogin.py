@@ -301,7 +301,7 @@ class AlexaLogin:
                 "User-Agent": (
                     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) "
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/83.0.4103.116 Safari/537.36"
+                    "Chrome/84.0.4147.135 Safari/537.36"
                 ),
                 "Accept": (
                     "text/html,application/xhtml+xml, "
