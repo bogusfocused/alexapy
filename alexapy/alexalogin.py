@@ -771,31 +771,29 @@ class AlexaLogin:
     def _populate_data(self, site: Text, data: Dict[str, Optional[str]]) -> bool:
         """Populate self._data with info from data."""
         # pull data from configurator
-        password: Optional[Text] = (
-            None if "password" not in data else data["password"]
+        password: Optional[Text] = data.get("password")
+        captcha: Optional[Text] = data.get("captcha")
+        securitycode: Optional[Text] = data.get("securitycode")
+        claimsoption: Optional[Text] = data.get("claimsoption")
+        authopt: Optional[Text] = data.get("authselectoption")
+        verificationcode: Optional[Text] = data.get("verificationcode")
+        _LOGGER.debug(
+            "Preparing form submission to %s with input data: %s", site, obfuscate(data)
         )
-        captcha: Optional[Text] = (None if "captcha" not in data else data["captcha"])
-        securitycode: Optional[Text] = (
-            None if "securitycode" not in data else data["securitycode"]
-        )
-        claimsoption: Optional[Text] = (
-            None if "claimsoption" not in data else data["claimsoption"]
-        )
-        authopt: Optional[Text] = (
-            None if "authselectoption" not in data else data["authselectoption"]
-        )
-        verificationcode: Optional[Text] = (
-            None if "verificationcode" not in data else data["verificationcode"]
-        )
-        _LOGGER.debug("Preparing form submission to %s with input data: %s", site, data)
 
-        #  add username and password to the data for post request
+        #  add username and password to self._data for post request
+        #  self._data is scraped from the form page in _process_page
         #  check if there is an input field
         if self._data:
             if "email" in self._data and self._data["email"] == "":
                 self._data["email"] = self._email
             if "password" in self._data and self._data["password"] == "":
-                self._data["password"] = self._password if not password else password
+                # add the otp to the password if available
+                self._data["password"] = (
+                    self._password
+                    if not password
+                    else password + data.get("securitycode", "")
+                )
             if "rememberMe" in self._data:
                 self._data["rememberMe"] = "true"
             if captcha is not None and "guess" in self._data:
