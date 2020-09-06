@@ -14,10 +14,10 @@ from http.cookies import CookieError
 from json import JSONDecodeError
 import logging
 import os
+from types import MappingProxyType
+from typing import Optional, Text, Union
 
 import aiofiles.os as aioos
-
-from typing import Optional, Union, Text
 
 from alexapy.aiohttp import ClientConnectionError, ContentTypeError
 
@@ -76,7 +76,7 @@ def obfuscate(item):
     """Obfuscate email, password, and other known sensitive keys."""
     if item is None:
         return ""
-    if isinstance(item, dict):
+    if isinstance(item, (MappingProxyType, dict)):
         response = item.copy()
         for key, value in item.items():
             if key in ["password"]:

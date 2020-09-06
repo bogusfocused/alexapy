@@ -123,9 +123,9 @@ class AlexaLogin:
             result += f"link{key}:{value[0]}\n"
         return result
 
-    async def login_with_cookie(self) -> None:
+    async def load_cookie(self) -> Optional[Dict[Text, Text]]:
         # pylint: disable=import-outside-toplevel
-        """Attempt to login after loading cookie."""
+        """Load cookie from disk."""
         from requests.cookies import RequestsCookieJar
         from collections import defaultdict
 
@@ -202,7 +202,7 @@ class AlexaLogin:
                                 self._cookiefile[0],
                                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
                             )
-        await self.login(cookies=self._cookies)
+        return self._cookies
 
     async def close(self) -> None:
         """Close connection for login."""
@@ -416,11 +416,10 @@ class AlexaLogin:
             async with aiofiles.open(self._debugget, mode="wb") as localfile:
                 await localfile.write(await resp.read())
         # This commented block can be used to read a file directly to process.
-        # import aiofiles
-
-        # async with aiofiles.open("/config/anti-automation-js.html", "rb") as myfile:
         # async with aiofiles.open(
+        #     "/config/anti-automation-js.html", "rb"
         #     "/config/Amazon-Password-Assistance.html", "rb"
+        #     "/config/password_reset_required.html", "rb"
         # ) as myfile:
         #     html = await myfile.read()
         site = await self._process_page(html, site)
@@ -676,7 +675,7 @@ class AlexaLogin:
             status["force_get"] = True
             status["message"] = re.sub("(\\s)+", "\\1", message)
             _LOGGER.debug("Javascript Authentication page detected: %s", message)
-        elif forgotpassword_tag:
+        elif forgotpassword_tag or soup.find("input", {"name": "OTPChallengeOptions"}):
             status["message"] = (
                 "Forgot password page detected; "
                 "Amazon has detected too many failed logins. "
@@ -725,8 +724,7 @@ class AlexaLogin:
             else:
                 _LOGGER.debug("Login failed; check credentials")
                 status["login_failed"] = "login_failed"
-                assert self._data is not None
-                if "" in self._data.values():
+                if self._data and "" in self._data.values():
                     missing = [k for (k, v) in self._data.items() if v == ""]
                     _LOGGER.debug(
                         "If credentials correct, please report"
