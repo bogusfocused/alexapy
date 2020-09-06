@@ -123,9 +123,9 @@ class AlexaLogin:
             result += f"link{key}:{value[0]}\n"
         return result
 
-    async def login_with_cookie(self) -> None:
+    async def load_cookie(self) -> Optional[Dict[Text, Text]]:
         # pylint: disable=import-outside-toplevel
-        """Attempt to login after loading cookie."""
+        """Load cookie from disk."""
         from requests.cookies import RequestsCookieJar
         from collections import defaultdict
 
@@ -202,7 +202,7 @@ class AlexaLogin:
                                 self._cookiefile[0],
                                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
                             )
-        await self.login(cookies=self._cookies)
+        return self._cookies
 
     async def close(self) -> None:
         """Close connection for login."""
