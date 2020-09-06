@@ -82,6 +82,18 @@ class AlexaAPI:
             self._session = login.session
             self._url: Text = "https://alexa." + login.url
             self._login._headers["Referer"] = "{}/spa/index.html".format(self._url)
+            try:
+                assert self._login._cookies is not None
+                csrf = self._login._cookies["csrf"]
+                self._login._headers["csrf"] = csrf
+            except KeyError as ex:
+                _LOGGER.warning(
+                    (
+                        "AlexaLogin session is missing required token: %s "
+                        "This may result in authorization errors, please report"
+                    ),
+                    ex,
+                )
             return True
         return False
 
