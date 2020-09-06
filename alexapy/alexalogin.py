@@ -725,8 +725,7 @@ class AlexaLogin:
             else:
                 _LOGGER.debug("Login failed; check credentials")
                 status["login_failed"] = "login_failed"
-                assert self._data is not None
-                if "" in self._data.values():
+                if self._data and "" in self._data.values():
                     missing = [k for (k, v) in self._data.items() if v == ""]
                     _LOGGER.debug(
                         "If credentials correct, please report"
