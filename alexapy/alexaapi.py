@@ -66,6 +66,25 @@ class AlexaAPI:
                 ex,
             )
 
+    def update_login(self, login: AlexaLogin) -> bool:
+        """Update Login if it has changed.
+
+        Args
+            login (AlexaLogin): AlexaLogin to check
+
+        Returns
+            bool: True if change detected
+
+        """
+        if login != self._login or login.session != self._session:
+            _LOGGER.debug("New Login %s detected; replacing %s", login, self._login)
+            self._login = login
+            self._session = login.session
+            self._url: Text = "https://alexa." + login.url
+            self._login._headers["Referer"] = "{}/spa/index.html".format(self._url)
+            return True
+        return False
+
     @backoff.on_exception(
         backoff.expo,
         (AlexapyTooManyRequestsError, AlexapyConnectionError, ClientConnectionError),
@@ -212,7 +231,7 @@ class AlexaAPI:
             "@type": "com.amazon.alexa.behaviors.model.Sequence",
             "startNode": node_data,
         }
-        if queue_delay > 0:
+        if queue_delay and queue_delay > 0:
             sequence_json["startNode"] = {
                 "@type": "com.amazon.alexa.behaviors.model.SerialNode",
                 "nodesToExecute": [],
@@ -1296,3 +1315,14 @@ class AlexaAPI:
         success = response.status == 200
         _LOGGER.debug("Success: %s Response: %s", success, response_json)
         return success
+
+    @staticmethod
+    @_catch_all_exceptions
+    async def force_logout() -> None:
+        """Force logout.
+
+        Raises
+            AlexapyLoginError: Raise AlexapyLoginError
+
+        """
+        raise AlexapyLoginError("Forced Logout")
