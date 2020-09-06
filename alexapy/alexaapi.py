@@ -212,7 +212,7 @@ class AlexaAPI:
             "@type": "com.amazon.alexa.behaviors.model.Sequence",
             "startNode": node_data,
         }
-        if queue_delay > 0:
+        if queue_delay and queue_delay > 0:
             sequence_json["startNode"] = {
                 "@type": "com.amazon.alexa.behaviors.model.SerialNode",
                 "nodesToExecute": [],
