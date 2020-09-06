@@ -416,11 +416,10 @@ class AlexaLogin:
             async with aiofiles.open(self._debugget, mode="wb") as localfile:
                 await localfile.write(await resp.read())
         # This commented block can be used to read a file directly to process.
-        # import aiofiles
-
-        # async with aiofiles.open("/config/anti-automation-js.html", "rb") as myfile:
         # async with aiofiles.open(
+        #     "/config/anti-automation-js.html", "rb"
         #     "/config/Amazon-Password-Assistance.html", "rb"
+        #     "/config/password_reset_required.html", "rb"
         # ) as myfile:
         #     html = await myfile.read()
         site = await self._process_page(html, site)
@@ -676,7 +675,7 @@ class AlexaLogin:
             status["force_get"] = True
             status["message"] = re.sub("(\\s)+", "\\1", message)
             _LOGGER.debug("Javascript Authentication page detected: %s", message)
-        elif forgotpassword_tag:
+        elif forgotpassword_tag or soup.find("input", {"name": "OTPChallengeOptions"}):
             status["message"] = (
                 "Forgot password page detected; "
                 "Amazon has detected too many failed logins. "
