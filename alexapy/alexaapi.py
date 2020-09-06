@@ -1296,3 +1296,14 @@ class AlexaAPI:
         success = response.status == 200
         _LOGGER.debug("Success: %s Response: %s", success, response_json)
         return success
+
+    @staticmethod
+    @_catch_all_exceptions
+    async def force_logout() -> None:
+        """Force logout.
+
+        Raises
+            AlexapyLoginError: Raise AlexapyLoginError
+
+        """
+        raise AlexapyLoginError("Forced Logout")
