@@ -66,6 +66,25 @@ class AlexaAPI:
                 ex,
             )
 
+    def update_login(self, login: AlexaLogin) -> bool:
+        """Update Login if it has changed.
+
+        Args
+            login (AlexaLogin): AlexaLogin to check
+
+        Returns
+            bool: True if change detected
+
+        """
+        if login != self._login or login.session != self._session:
+            _LOGGER.debug("New Login %s detected; replacing %s", login, self._login)
+            self._login = login
+            self._session = login.session
+            self._url: Text = "https://alexa." + login.url
+            self._login._headers["Referer"] = "{}/spa/index.html".format(self._url)
+            return True
+        return False
+
     @backoff.on_exception(
         backoff.expo,
         (AlexapyTooManyRequestsError, AlexapyConnectionError, ClientConnectionError),
