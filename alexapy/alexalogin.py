@@ -157,7 +157,7 @@ class AlexaLogin:
                 except (pickle.UnpicklingError):
                     try:
                         cookies = http.cookiejar.MozillaCookieJar(cookiefile)
-                        cookies.load()
+                        cookies.load(ignore_discard=True, ignore_expires=True)
                         if self._debug:
                             _LOGGER.debug(
                                 "Mozilla cookie loaded: %s %s", type(cookies), cookies
