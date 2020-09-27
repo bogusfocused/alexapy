@@ -83,6 +83,8 @@ def obfuscate(item):
                 response[key] = f"REDACTED {len(value)} CHARS"
             elif key in ["email"]:
                 response[key] = hide_email(value)
+            elif key in ["cookies_txt"]:
+                response[key] = "OBFUSCATED COOKIE"
             elif key in [
                 "deviceSerialNumber",
                 "serialNumber",
