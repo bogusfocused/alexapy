@@ -736,12 +736,12 @@ class AlexaLogin:
                 )
                 status["login_successful"] = True
                 self._prepare_cookies_from_session(self._url)
-                if self._debug:
-                    _LOGGER.debug("Saving cookie: %s", self._print_session_cookies())
                 for cookiefile in self._cookiefile:
                     if cookiefile == self._cookiefile[0]:
                         cookie_jar = self._session.cookie_jar
                         assert isinstance(cookie_jar, aiohttp.CookieJar)
+                        if self._debug:
+                            _LOGGER.debug("Saving cookie to %s", cookiefile)
                         try:
                             cookie_jar.save(self._cookiefile[0])
                         except (OSError, EOFError, TypeError, AttributeError) as ex:
