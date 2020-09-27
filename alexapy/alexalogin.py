@@ -73,6 +73,7 @@ class AlexaLogin:
         self._cookiefile: List[Text] = [
             outputpath(".storage/{}.{}.pickle".format(prefix, email)),
             outputpath("{}.{}.pickle".format(prefix, email)),
+            outputpath(".storage/{}.{}.txt".format(prefix, email)),
         ]
         self._debugpost: Text = outputpath("{}{}post.html".format(prefix, email))
         self._debugget: Text = outputpath("{}{}get.html".format(prefix, email))
@@ -128,12 +129,18 @@ class AlexaLogin:
         """Load cookie from disk."""
         from requests.cookies import RequestsCookieJar
         from collections import defaultdict
+        import http.cookiejar
 
-        cookies: Optional[RequestsCookieJar] = None
+        cookies: Optional[
+            Union[RequestsCookieJar, http.cookiejar.MozillaCookieJar]
+        ] = None
         numcookies: int = 0
         loaded: bool = False
         if self._cookiefile:
             for cookiefile in self._cookiefile:
+                _LOGGER.debug("Searching for cookies from %s", cookiefile)
+                if loaded:
+                    break
                 numcookies = 0
                 if not os.path.exists(cookiefile):
                     continue
@@ -145,15 +152,30 @@ class AlexaLogin:
                         cookies = pickle.loads(await myfile.read())
                         if self._debug:
                             _LOGGER.debug(
-                                "cookie loaded: %s %s", type(cookies), cookies
+                                "Pickled cookie loaded: %s %s", type(cookies), cookies
                             )
-                except (OSError, EOFError, pickle.UnpicklingError) as ex:
+                except (pickle.UnpicklingError):
+                    try:
+                        cookies = http.cookiejar.MozillaCookieJar(cookiefile)
+                        cookies.load()
+                        if self._debug:
+                            _LOGGER.debug(
+                                "Mozilla cookie loaded: %s %s", type(cookies), cookies
+                            )
+                    except (ValueError, http.cookiejar.LoadError) as ex:
+                        _LOGGER.debug(
+                            "Mozilla cookie %s is truncated: %s",
+                            cookiefile,
+                            EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                        )
+                        continue
+                except (OSError, EOFError) as ex:
                     _LOGGER.debug(
-                        "Error loading pickled cookie from %s: %s",
+                        "Error loading cookie from %s: %s",
                         cookiefile,
                         EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
                     )
-                # escape extra quote marks from Requests cookie
+                    continue
                 if isinstance(cookies, RequestsCookieJar):
                     _LOGGER.debug("Loading RequestsCookieJar")
                     cookies = cookies.get_dict()
@@ -162,6 +184,7 @@ class AlexaLogin:
                     for key, value in cookies.items():
                         if self._debug:
                             _LOGGER.debug('Key: "%s", Value: "%s"', key, value)
+                        # escape extra quote marks from Requests cookie
                         self._cookies[str(key)] = value.strip('"')
                     numcookies = len(self._cookies)
                 elif isinstance(cookies, defaultdict):
@@ -183,6 +206,18 @@ class AlexaLogin:
                 elif isinstance(cookies, dict):
                     _LOGGER.debug("Found dict cookie")
                     self._cookies = cookies
+                    numcookies = len(self._cookies)
+                elif isinstance(cookies, http.cookiejar.MozillaCookieJar):
+                    _LOGGER.debug("Found Mozillacookiejar")
+                    for cookie in cookies:
+                        if self._debug:
+                            _LOGGER.debug(
+                                "Processing cookie %s expires: %s",
+                                cookie,
+                                cookie.expires,
+                            )
+                        # escape extra quote marks from MozillaCookieJar cookie
+                        self._cookies[cookie.name] = cookie.value.strip('"')
                     numcookies = len(self._cookies)
                 else:
                     _LOGGER.debug("Ignoring unknown file %s", type(cookies))
