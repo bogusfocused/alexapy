@@ -380,9 +380,9 @@ class AlexaLogin:
             )
         for cookie in cookie_jar:
             oldvalue = self._cookies[cookie.key] if cookie.key in self._cookies else ""
-            if cookie["domain"] == str(site):
+            if cookie["domain"] == str(site) or cookie["domain"] == "":
                 self._cookies[cookie.key] = cookie.value
-                if self._debug:
+                if self._debug and oldvalue != cookie.value:
                     _LOGGER.debug(
                         "%s: key: %s value: %s -> %s",
                         site,
