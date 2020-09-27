@@ -124,7 +124,7 @@ class AlexaLogin:
             result += f"link{key}:{value[0]}\n"
         return result
 
-    async def load_cookie(self) -> Optional[Dict[Text, Text]]:
+    async def load_cookie(self, cookies_txt: Text = "") -> Optional[Dict[Text, Text]]:
         # pylint: disable=import-outside-toplevel
         """Load cookie from disk."""
         from requests.cookies import RequestsCookieJar
@@ -137,6 +137,21 @@ class AlexaLogin:
         numcookies: int = 0
         loaded: bool = False
         if self._cookiefile:
+            if cookies_txt:
+                _LOGGER.debug(
+                    "Saving passed in cookie to %s\n%s",
+                    self._cookiefile[0],
+                    repr(cookies_txt),
+                )
+                async with aiofiles.open(self._cookiefile[0], mode="w") as localfile:
+                    try:
+                        await localfile.write(cookies_txt)
+                    except (OSError, EOFError, TypeError, AttributeError) as ex:
+                        _LOGGER.debug(
+                            "Error saving passed in cookie to %s: %s",
+                            self._cookiefile[0],
+                            EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                        )
             for cookiefile in self._cookiefile:
                 _LOGGER.debug("Searching for cookies from %s", cookiefile)
                 if loaded:
@@ -406,7 +421,25 @@ class AlexaLogin:
                 self.status = {}
                 self.status["login_successful"] = True
                 _LOGGER.debug("Log in successful with cookies")
-                self._prepare_cookies_from_session(self._url)
+                for cookiefile in self._cookiefile:
+                    if cookiefile == self._cookiefile[0]:
+                        cookie_jar = self._session.cookie_jar
+                        assert isinstance(cookie_jar, aiohttp.CookieJar)
+                        cookie_jar.update_cookies(self._cookies)
+                        self._prepare_cookies_from_session(self._url)
+                        if self._debug:
+                            _LOGGER.debug("Saving cookie to %s", cookiefile)
+                        try:
+                            cookie_jar.save(self._cookiefile[0])
+                        except (OSError, EOFError, TypeError, AttributeError) as ex:
+                            _LOGGER.debug(
+                                "Error saving pickled cookie to %s: %s",
+                                self._cookiefile[0],
+                                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                            )
+                    elif (cookiefile) and os.path.exists(cookiefile):
+                        _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
+                        await delete_cookie(cookiefile)
                 return
             await self.reset()
         _LOGGER.debug("No valid cookies for log in; using credentials")
