@@ -161,7 +161,7 @@ class AlexaLogin:
                     continue
                 if loaded and cookiefile != self._cookiefile[0]:
                     await delete_cookie(cookiefile)
-                _LOGGER.debug("Trying to load pickled cookie from file %s", cookiefile)
+                _LOGGER.debug("Trying to load cookie from file %s", cookiefile)
                 try:
                     async with aiofiles.open(cookiefile, "rb") as myfile:
                         cookies = pickle.loads(await myfile.read())
@@ -179,7 +179,7 @@ class AlexaLogin:
                             )
                     except (ValueError, http.cookiejar.LoadError) as ex:
                         _LOGGER.debug(
-                            "Mozilla cookie %s is truncated: %s",
+                            "Cookie %s is truncated: %s",
                             cookiefile,
                             EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
                         )
