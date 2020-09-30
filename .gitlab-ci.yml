@@ -35,18 +35,18 @@ lint:
         - setup.cfg
         - pyproject.toml
 
-#check_vulns:
-#  stage: test
-#  script:
-#    - make check_vulns
-#  rules:
-#    - changes: # Will include the job and set to when:manual if any of the follow paths match a modified file.
-#        - poetry.lock
-#        - alexapy/*
-#        - pylintrc
-#        - setup.cfg
-#        - pyproject.toml
-#    - allow_failure: true
+check_vulns:
+ stage: test
+ script:
+   - make check_vulns
+ rules:
+   - changes: # Will include the job and set to when:manual if any of the follow paths match a modified file.
+       - poetry.lock
+       - alexapy/*
+       - pylintrc
+       - setup.cfg
+       - pyproject.toml
+   - allow_failure: true
 
 bump_and_publish:
   stage: build
