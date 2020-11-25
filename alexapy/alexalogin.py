@@ -421,25 +421,7 @@ class AlexaLogin:
                 self.status = {}
                 self.status["login_successful"] = True
                 _LOGGER.debug("Log in successful with cookies")
-                for cookiefile in self._cookiefile:
-                    if cookiefile == self._cookiefile[0]:
-                        cookie_jar = self._session.cookie_jar
-                        assert isinstance(cookie_jar, aiohttp.CookieJar)
-                        cookie_jar.update_cookies(self._cookies)
-                        self._prepare_cookies_from_session(self._url)
-                        if self._debug:
-                            _LOGGER.debug("Saving cookie to %s", cookiefile)
-                        try:
-                            cookie_jar.save(self._cookiefile[0])
-                        except (OSError, EOFError, TypeError, AttributeError) as ex:
-                            _LOGGER.debug(
-                                "Error saving pickled cookie to %s: %s",
-                                self._cookiefile[0],
-                                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
-                            )
-                    elif (cookiefile) and os.path.exists(cookiefile):
-                        _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
-                        await delete_cookie(cookiefile)
+                await self.save_cookiefile()
                 return
             await self.reset()
         _LOGGER.debug("No valid cookies for log in; using credentials")
@@ -522,6 +504,29 @@ class AlexaLogin:
             self._lastreq = post_resp
             site = await self._process_resp(post_resp)
             self._site = await self._process_page(await post_resp.text(), site)
+
+    async def save_cookiefile(self) -> None:
+        """Save login session cookies to file."""
+        self._prepare_cookies_from_session(self._url)
+        for cookiefile in self._cookiefile:
+            if cookiefile == self._cookiefile[0]:
+                cookie_jar = self._session.cookie_jar
+                assert isinstance(cookie_jar, aiohttp.CookieJar)
+                cookie_jar.update_cookies(self._cookies)
+                self._prepare_cookies_from_session(self._url)
+                if self._debug:
+                    _LOGGER.debug("Saving cookie to %s", cookiefile)
+                try:
+                    cookie_jar.save(self._cookiefile[0])
+                except (OSError, EOFError, TypeError, AttributeError) as ex:
+                    _LOGGER.debug(
+                        "Error saving pickled cookie to %s: %s",
+                        self._cookiefile[0],
+                        EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                    )
+            elif (cookiefile) and os.path.exists(cookiefile):
+                _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
+                await delete_cookie(cookiefile)
 
     async def _process_resp(self, resp) -> Text:
         if resp.history:
@@ -768,24 +773,7 @@ class AlexaLogin:
                     "Login confirmed; saving cookie to %s", self._cookiefile[0]
                 )
                 status["login_successful"] = True
-                self._prepare_cookies_from_session(self._url)
-                for cookiefile in self._cookiefile:
-                    if cookiefile == self._cookiefile[0]:
-                        cookie_jar = self._session.cookie_jar
-                        assert isinstance(cookie_jar, aiohttp.CookieJar)
-                        if self._debug:
-                            _LOGGER.debug("Saving cookie to %s", cookiefile)
-                        try:
-                            cookie_jar.save(self._cookiefile[0])
-                        except (OSError, EOFError, TypeError, AttributeError) as ex:
-                            _LOGGER.debug(
-                                "Error saving pickled cookie to %s: %s",
-                                self._cookiefile[0],
-                                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
-                            )
-                    elif (cookiefile) and os.path.exists(cookiefile):
-                        _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
-                        await delete_cookie(cookiefile)
+                await self.save_cookiefile()
                 #  remove extraneous Content-Type to avoid 500 errors
                 self._headers.pop("Content-Type", None)
 
