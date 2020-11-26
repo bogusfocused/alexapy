@@ -20,13 +20,14 @@ from urllib.parse import urlencode, urlparse
 import aiofiles
 from aiofiles import os as aioos
 from bs4 import BeautifulSoup
+import pyotp
 from simplejson import JSONDecodeError as SimpleJSONDecodeError
 
 from alexapy import aiohttp
 from alexapy.aiohttp.client_exceptions import ContentTypeError
 
 from .const import EXCEPTION_TEMPLATE
-from .helpers import _catch_all_exceptions, delete_cookie, obfuscate
+from .helpers import _catch_all_exceptions, delete_cookie, hide_serial, obfuscate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class AlexaLogin:
     password (string): Password for Amazon login account
     outputpath (function): Local path with write access for storing files
     debug (boolean): Enable additional debugging including debug file creation
+    otp_secret (string): TOTP Secret key for automatic 2FA filling
 
     """
 
@@ -51,10 +53,12 @@ class AlexaLogin:
         password: Text,
         outputpath: Callable[[Text], Text],
         debug: bool = False,
+        otp_secret: Text = "",
     ) -> None:
         # pylint: disable=too-many-arguments,import-outside-toplevel
         """Set up initial connection and log in."""
         import ssl
+
         import certifi
 
         prefix: Text = "alexa_media"
@@ -85,6 +89,8 @@ class AlexaLogin:
         self._create_session()
         self._close_requested = False
         self._customer_id: Optional[Text] = None
+        self._totp: Optional[pyotp.TOTP] = None
+        self.set_totp(otp_secret.replace(" ", ""))
 
     @property
     def email(self) -> Text:
@@ -124,12 +130,43 @@ class AlexaLogin:
             result += f"link{key}:{value[0]}\n"
         return result
 
+    def set_totp(self, otp_secret: Text) -> Optional[pyotp.TOTP]:
+        """Enable a TOTP generator for the login.
+
+        Args
+            otp_secret (Text): Secret. If blank, it will remove the TOTP entry.
+
+        Returns
+            Optional[pyotp.TOTP]: The pyotp TOTP object
+
+        """
+        if otp_secret:
+            _LOGGER.debug("Creating TOTP for %s", hide_serial(otp_secret))
+            self._totp = pyotp.TOTP(otp_secret)
+        else:
+            self._totp = None
+        return self._totp
+
+    def get_totp_token(self) -> Text:
+        """Generate Timed based OTP token.
+
+        Returns
+            Text: OTP for current time.
+
+        """
+        if self._totp:
+            token: Text = self._totp.now()
+            _LOGGER.debug("Generating OTP %s", token)
+            return token
+        return ""
+
     async def load_cookie(self, cookies_txt: Text = "") -> Optional[Dict[Text, Text]]:
         # pylint: disable=import-outside-toplevel
         """Load cookie from disk."""
-        from requests.cookies import RequestsCookieJar
         from collections import defaultdict
         import http.cookiejar
+
+        from requests.cookies import RequestsCookieJar
 
         cookies: Optional[
             Union[RequestsCookieJar, http.cookiejar.MozillaCookieJar]
@@ -827,7 +864,9 @@ class AlexaLogin:
         # pull data from configurator
         password: Optional[Text] = data.get("password")
         captcha: Optional[Text] = data.get("captcha")
-        securitycode: Optional[Text] = data.get("securitycode")
+        if not data.get("securitycode") and self._totp:
+            _LOGGER.debug("No 2FA code supplied but will generate.")
+        securitycode: Optional[Text] = data.get("securitycode", self.get_totp_token())
         claimsoption: Optional[Text] = data.get("claimsoption")
         authopt: Optional[Text] = data.get("authselectoption")
         verificationcode: Optional[Text] = data.get("verificationcode")
@@ -846,7 +885,9 @@ class AlexaLogin:
                 self._data["password"] = (
                     self._password
                     if not password
-                    else password + data.get("securitycode", "")
+                    else password + securitycode
+                    if securitycode
+                    else password
                 )
             if "rememberMe" in self._data:
                 self._data["rememberMe"] = "true"

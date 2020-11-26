@@ -53,12 +53,17 @@ def hide_serial(item: Optional[Union[dict, str, list]]) -> Union[dict, str, list
     if isinstance(item, dict):
         response = item.copy()
         for key, value in item.items():
-            if isinstance(value, (dict, list)) or key in [
-                "deviceSerialNumber",
-                "serialNumber",
-                "destinationUserId",
-                "customerId",
-            ]:
+            if (
+                isinstance(value, (dict, list))
+                or key
+                in [
+                    "deviceSerialNumber",
+                    "serialNumber",
+                    "destinationUserId",
+                    "customerId",
+                ]
+                or "secret" in key
+            ):
                 response[key] = hide_serial(value)
     elif isinstance(item, str):
         response = "{}{}{}".format(item[0], "*" * (len(item) - 4), item[-3:])
@@ -85,12 +90,16 @@ def obfuscate(item):
                 response[key] = hide_email(value)
             elif key in ["cookies_txt"]:
                 response[key] = "OBFUSCATED COOKIE"
-            elif key in [
-                "deviceSerialNumber",
-                "serialNumber",
-                "destinationUserId",
-                "customerId",
-            ]:
+            elif (
+                key
+                in [
+                    "deviceSerialNumber",
+                    "serialNumber",
+                    "destinationUserId",
+                    "customerId",
+                ]
+                or "secret" in key
+            ):
                 response[key] = hide_serial(value)
             elif isinstance(value, (dict, list, tuple)):
                 response[key] = obfuscate(value)
