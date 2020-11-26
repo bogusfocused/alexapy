@@ -125,7 +125,7 @@ def _catch_all_exceptions(func):
                 obfuscate(kwargs),
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
-            raise AlexapyConnectionError
+            raise AlexapyConnectionError from ex
         except (JSONDecodeError, CookieError) as ex:
             _LOGGER.warning(
                 "%s.%s(%s, %s): A login error occured: %s",
@@ -135,7 +135,7 @@ def _catch_all_exceptions(func):
                 obfuscate(kwargs),
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
-            raise AlexapyLoginError
+            raise AlexapyLoginError from ex
         except (ContentTypeError) as ex:
             _LOGGER.warning(
                 "%s.%s(%s, %s): A login error occured; Amazon may want you to change your password: %s",
@@ -145,7 +145,7 @@ def _catch_all_exceptions(func):
                 obfuscate(kwargs),
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
-            raise AlexapyLoginError
+            raise AlexapyLoginError from ex
         except CancelledError as ex:
             _LOGGER.warning(
                 "%s.%s(%s, %s): Timeout error occured accessing AlexaAPI: %s",
