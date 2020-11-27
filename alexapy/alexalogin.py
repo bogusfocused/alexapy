@@ -882,7 +882,7 @@ class AlexaLogin:
             if "password" in self._data and self._data["password"] == "":
                 # add the otp to the password if available
                 self._data["password"] = (
-                    self._password
+                    self._password + securitycode
                     if not password
                     else password + securitycode
                     if securitycode
