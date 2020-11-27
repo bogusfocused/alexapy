@@ -10,6 +10,7 @@ https://gitlab.com/keatontaylor/alexapy
 
 from json import JSONDecodeError
 import logging
+import datetime
 import os
 import pickle
 import re
@@ -74,6 +75,10 @@ class AlexaLogin:
         self._headers: Dict[Text, Text] = {}
         self._data: Optional[Dict[Text, Text]] = None
         self.status: Optional[Dict[Text, Union[Text, bool]]] = {}
+        self.stats: Optional[Dict[Text, Union[Text, bool]]] = {
+            "login_timestamp": datetime.datetime(1, 1, 1),
+            "api_calls": 0,
+        }
         self._cookiefile: List[Text] = [
             outputpath(".storage/{}.{}.pickle".format(prefix, email)),
             outputpath("{}.{}.pickle".format(prefix, email)),
@@ -371,11 +376,15 @@ class AlexaLogin:
         self.customer_id = json.get("authentication", {}).get("customerId")
         if email != "" and email.lower() == self._email.lower():
             _LOGGER.debug("Logged in as %s with id: %s", email, self.customer_id)
+            self.stats["login_timestamp"] = datetime.datetime.now()
+            self.stats["api_calls"] = 0
             return True
         if email == "":
             _LOGGER.debug(
                 "Logged in as mobile account %s with %s", email, self.customer_id
             )
+            self.stats["login_timestamp"] = datetime.datetime.now()
+            self.stats["api_calls"] = 0
             return True
         _LOGGER.debug("Not logged in due to email mismatch")
         await self.reset()

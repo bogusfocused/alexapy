@@ -144,6 +144,7 @@ class AlexaAPI:
             response.reason,
             response.content_type,
         )
+        self._login.stats["api_calls"] += 1
         if response.status == 401:
             raise AlexapyLoginError(response.reason)
         if response.status == 429:
