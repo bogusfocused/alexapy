@@ -544,7 +544,6 @@ class AlexaLogin:
 
     async def save_cookiefile(self) -> None:
         """Save login session cookies to file."""
-        self._prepare_cookies_from_session(self._url)
         for cookiefile in self._cookiefile:
             if cookiefile == self._cookiefile[0]:
                 cookie_jar = self._session.cookie_jar
