@@ -309,6 +309,7 @@ class AlexaAPI:
         sequence: Text,
         customer_id: Optional[Text] = None,
         queue_delay: float = 1.5,
+        extra: Optional[Dict[Any, Any]] = None,
         **kwargs,
     ) -> None:
         """Send sequence command.
@@ -326,6 +327,7 @@ class AlexaAPI:
                                     for commands to queue together.
                                     Defaults to 1.5.
                                     Must be positive.
+        extra (Dict): Extra dictionary array; functionality undetermined
         **kwargs : Each named variable must match a recognized Amazon variable
                    within the operationPayload. Please see examples in
                    play_music, send_announcement, and send_tts.
@@ -350,6 +352,7 @@ class AlexaAPI:
         https://github.com/custom-components/alexa_media_player/wiki#sequence-commands-versions--100
 
         """
+        extra = extra or {}
         operation_payload = {
             "deviceType": self._device._device_type,
             "deviceSerialNumber": self._device.unique_id,
@@ -517,6 +520,7 @@ class AlexaAPI:
         customer_id: Optional[Text] = None,
         timer: Optional[int] = None,
         queue_delay: float = 1.5,
+        extra: Optional[Dict[Any, Any]] = None,
     ) -> None:
         """Play music based on search.
 
@@ -528,9 +532,13 @@ class AlexaAPI:
                              with households where others may have their own
                              music.
             timer (Optional[int]): Number of seconds to play before stopping.
-            queue_delay (float, optional): [description]. Defaults to 1.5.
+            queue_delay (float, optional): The number of seconds to wait
+                                   for commands to queue together.
+                                   Must be positive. Defaults to 1.5.
+            extra (Dict): Extra dictionary array; functionality undetermined
 
         """
+        extra = extra or {}
         customer_id = self._login.customer_id if customer_id is None else customer_id
         if timer:
             await self.send_sequence(
@@ -558,8 +566,10 @@ class AlexaAPI:
         sound_string_id: Text,
         customer_id: Optional[Text] = None,
         queue_delay: float = 1.5,
+        extra: Optional[Dict[Any, Any]] = None,
     ) -> None:
         """Play Alexa sound."""
+        extra = extra or {}
         await self.send_sequence(
             "Alexa.Sound",
             customer_id=self._login.customer_id if customer_id is None else customer_id,
@@ -726,6 +736,7 @@ class AlexaAPI:
         customer_id: Optional[Text] = None,
         targets: Optional[List[Text]] = None,
         queue_delay: float = 1.5,
+        extra: Optional[Dict[Any, Any]] = None,
     ) -> None:
         # pylint: disable=too-many-arguments
         """Send announcment to Alexa devices.
@@ -749,8 +760,10 @@ class AlexaAPI:
                                         for commands to queue together.
                                         Defaults to 1.5.
                                         Must be positive.
+        extra (Dict): Extra dictionary array; functionality undetermined
 
         """
+        extra = extra or {}
         display = (
             {"title": "", "body": ""}
             if method.lower() == "speak"
@@ -791,6 +804,7 @@ class AlexaAPI:
         title: Text = "AlexaAPI Message",
         customer_id: Optional[Text] = None,
         queue_delay: float = 1.5,
+        extra: Optional[Dict[Any, Any]] = None,
     ) -> None:
         """Send mobile push to Alexa app.
 
@@ -806,8 +820,10 @@ class AlexaAPI:
                                         for commands to queue together.
                                         Defaults to 1.5.
                                         Must be positive.
+        extra (Dict): Extra dictionary array; functionality undetermined
 
         """
+        extra = extra or {}
         await self.send_sequence(
             "Alexa.Notifications.SendMobilePush",
             customer_id=(
@@ -827,6 +843,7 @@ class AlexaAPI:
         title: Text = "AlexaAPI Dropin Notification",
         customer_id: Optional[Text] = None,
         queue_delay: float = 1.5,
+        extra: Optional[Dict[Any, Any]] = None,
     ) -> None:
         """Send dropin notification to Alexa app for Alexa device.
 
@@ -842,8 +859,10 @@ class AlexaAPI:
                                         for commands to queue together.
                                         Defaults to 1.5.
                                         Must be positive.
+        extra (Dict): Extra dictionary array; functionality undetermined
 
         """
+        extra = extra or {}
         await self.send_sequence(
             "Alexa.Notifications.DropIn",
             customer_id=(
