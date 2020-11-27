@@ -10,6 +10,7 @@ https://gitlab.com/keatontaylor/alexapy
 
 from json import JSONDecodeError
 import logging
+import datetime
 import os
 import pickle
 import re
@@ -20,13 +21,14 @@ from urllib.parse import urlencode, urlparse
 import aiofiles
 from aiofiles import os as aioos
 from bs4 import BeautifulSoup
+import pyotp
 from simplejson import JSONDecodeError as SimpleJSONDecodeError
 
 from alexapy import aiohttp
 from alexapy.aiohttp.client_exceptions import ContentTypeError
 
 from .const import EXCEPTION_TEMPLATE
-from .helpers import _catch_all_exceptions, delete_cookie, obfuscate
+from .helpers import _catch_all_exceptions, delete_cookie, hide_serial, obfuscate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,6 +43,7 @@ class AlexaLogin:
     password (string): Password for Amazon login account
     outputpath (function): Local path with write access for storing files
     debug (boolean): Enable additional debugging including debug file creation
+    otp_secret (string): TOTP Secret key for automatic 2FA filling
 
     """
 
@@ -51,10 +54,12 @@ class AlexaLogin:
         password: Text,
         outputpath: Callable[[Text], Text],
         debug: bool = False,
+        otp_secret: Text = "",
     ) -> None:
         # pylint: disable=too-many-arguments,import-outside-toplevel
         """Set up initial connection and log in."""
         import ssl
+
         import certifi
 
         prefix: Text = "alexa_media"
@@ -70,6 +75,10 @@ class AlexaLogin:
         self._headers: Dict[Text, Text] = {}
         self._data: Optional[Dict[Text, Text]] = None
         self.status: Optional[Dict[Text, Union[Text, bool]]] = {}
+        self.stats: Optional[Dict[Text, Union[Text, bool]]] = {
+            "login_timestamp": datetime.datetime(1, 1, 1),
+            "api_calls": 0,
+        }
         self._cookiefile: List[Text] = [
             outputpath(".storage/{}.{}.pickle".format(prefix, email)),
             outputpath("{}.{}.pickle".format(prefix, email)),
@@ -85,6 +94,8 @@ class AlexaLogin:
         self._create_session()
         self._close_requested = False
         self._customer_id: Optional[Text] = None
+        self._totp: Optional[pyotp.TOTP] = None
+        self.set_totp(otp_secret.replace(" ", ""))
 
     @property
     def email(self) -> Text:
@@ -124,12 +135,43 @@ class AlexaLogin:
             result += f"link{key}:{value[0]}\n"
         return result
 
+    def set_totp(self, otp_secret: Text) -> Optional[pyotp.TOTP]:
+        """Enable a TOTP generator for the login.
+
+        Args
+            otp_secret (Text): Secret. If blank, it will remove the TOTP entry.
+
+        Returns
+            Optional[pyotp.TOTP]: The pyotp TOTP object
+
+        """
+        if otp_secret:
+            _LOGGER.debug("Creating TOTP for %s", hide_serial(otp_secret))
+            self._totp = pyotp.TOTP(otp_secret)
+        else:
+            self._totp = None
+        return self._totp
+
+    def get_totp_token(self) -> Text:
+        """Generate Timed based OTP token.
+
+        Returns
+            Text: OTP for current time.
+
+        """
+        if self._totp:
+            token: Text = self._totp.now()
+            _LOGGER.debug("Generating OTP %s", token)
+            return token
+        return ""
+
     async def load_cookie(self, cookies_txt: Text = "") -> Optional[Dict[Text, Text]]:
         # pylint: disable=import-outside-toplevel
         """Load cookie from disk."""
-        from requests.cookies import RequestsCookieJar
         from collections import defaultdict
         import http.cookiejar
+
+        from requests.cookies import RequestsCookieJar
 
         cookies: Optional[
             Union[RequestsCookieJar, http.cookiejar.MozillaCookieJar]
@@ -334,11 +376,15 @@ class AlexaLogin:
         self.customer_id = json.get("authentication", {}).get("customerId")
         if email != "" and email.lower() == self._email.lower():
             _LOGGER.debug("Logged in as %s with id: %s", email, self.customer_id)
+            self.stats["login_timestamp"] = datetime.datetime.now()
+            self.stats["api_calls"] = 0
             return True
         if email == "":
             _LOGGER.debug(
                 "Logged in as mobile account %s with %s", email, self.customer_id
             )
+            self.stats["login_timestamp"] = datetime.datetime.now()
+            self.stats["api_calls"] = 0
             return True
         _LOGGER.debug("Not logged in due to email mismatch")
         await self.reset()
@@ -421,25 +467,7 @@ class AlexaLogin:
                 self.status = {}
                 self.status["login_successful"] = True
                 _LOGGER.debug("Log in successful with cookies")
-                for cookiefile in self._cookiefile:
-                    if cookiefile == self._cookiefile[0]:
-                        cookie_jar = self._session.cookie_jar
-                        assert isinstance(cookie_jar, aiohttp.CookieJar)
-                        cookie_jar.update_cookies(self._cookies)
-                        self._prepare_cookies_from_session(self._url)
-                        if self._debug:
-                            _LOGGER.debug("Saving cookie to %s", cookiefile)
-                        try:
-                            cookie_jar.save(self._cookiefile[0])
-                        except (OSError, EOFError, TypeError, AttributeError) as ex:
-                            _LOGGER.debug(
-                                "Error saving pickled cookie to %s: %s",
-                                self._cookiefile[0],
-                                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
-                            )
-                    elif (cookiefile) and os.path.exists(cookiefile):
-                        _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
-                        await delete_cookie(cookiefile)
+                await self.save_cookiefile()
                 return
             await self.reset()
         _LOGGER.debug("No valid cookies for log in; using credentials")
@@ -522,6 +550,28 @@ class AlexaLogin:
             self._lastreq = post_resp
             site = await self._process_resp(post_resp)
             self._site = await self._process_page(await post_resp.text(), site)
+
+    async def save_cookiefile(self) -> None:
+        """Save login session cookies to file."""
+        for cookiefile in self._cookiefile:
+            if cookiefile == self._cookiefile[0]:
+                cookie_jar = self._session.cookie_jar
+                assert isinstance(cookie_jar, aiohttp.CookieJar)
+                cookie_jar.update_cookies(self._cookies)
+                self._prepare_cookies_from_session(self._url)
+                if self._debug:
+                    _LOGGER.debug("Saving cookie to %s", cookiefile)
+                try:
+                    cookie_jar.save(self._cookiefile[0])
+                except (OSError, EOFError, TypeError, AttributeError) as ex:
+                    _LOGGER.debug(
+                        "Error saving pickled cookie to %s: %s",
+                        self._cookiefile[0],
+                        EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                    )
+            elif (cookiefile) and os.path.exists(cookiefile):
+                _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
+                await delete_cookie(cookiefile)
 
     async def _process_resp(self, resp) -> Text:
         if resp.history:
@@ -768,24 +818,7 @@ class AlexaLogin:
                     "Login confirmed; saving cookie to %s", self._cookiefile[0]
                 )
                 status["login_successful"] = True
-                self._prepare_cookies_from_session(self._url)
-                for cookiefile in self._cookiefile:
-                    if cookiefile == self._cookiefile[0]:
-                        cookie_jar = self._session.cookie_jar
-                        assert isinstance(cookie_jar, aiohttp.CookieJar)
-                        if self._debug:
-                            _LOGGER.debug("Saving cookie to %s", cookiefile)
-                        try:
-                            cookie_jar.save(self._cookiefile[0])
-                        except (OSError, EOFError, TypeError, AttributeError) as ex:
-                            _LOGGER.debug(
-                                "Error saving pickled cookie to %s: %s",
-                                self._cookiefile[0],
-                                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
-                            )
-                    elif (cookiefile) and os.path.exists(cookiefile):
-                        _LOGGER.debug("Removing outdated cookiefile %s", cookiefile)
-                        await delete_cookie(cookiefile)
+                await self.save_cookiefile()
                 #  remove extraneous Content-Type to avoid 500 errors
                 self._headers.pop("Content-Type", None)
 
@@ -839,7 +872,9 @@ class AlexaLogin:
         # pull data from configurator
         password: Optional[Text] = data.get("password")
         captcha: Optional[Text] = data.get("captcha")
-        securitycode: Optional[Text] = data.get("securitycode")
+        if not data.get("securitycode") and self._totp:
+            _LOGGER.debug("No 2FA code supplied but will generate.")
+        securitycode: Optional[Text] = data.get("securitycode", self.get_totp_token())
         claimsoption: Optional[Text] = data.get("claimsoption")
         authopt: Optional[Text] = data.get("authselectoption")
         verificationcode: Optional[Text] = data.get("verificationcode")
@@ -856,9 +891,11 @@ class AlexaLogin:
             if "password" in self._data and self._data["password"] == "":
                 # add the otp to the password if available
                 self._data["password"] = (
-                    self._password
+                    self._password + securitycode
                     if not password
-                    else password + data.get("securitycode", "")
+                    else password + securitycode
+                    if securitycode
+                    else password
                 )
             if "rememberMe" in self._data:
                 self._data["rememberMe"] = "true"

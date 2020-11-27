@@ -11,16 +11,8 @@ import asyncio
 import json
 import logging
 import time
-from typing import (
-    Any,
-    Callable,  # noqa pylint: disable=unused-import
-    Coroutine,
-    Dict,
-    List,
-    Text,
-    Union,
-    cast,
-)
+from typing import Any, Coroutine, Dict, List, Text, Union, cast
+from typing import Callable  # noqa pylint: disable=unused-import
 
 from alexapy import aiohttp
 
