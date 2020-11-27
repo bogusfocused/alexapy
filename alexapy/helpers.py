@@ -53,12 +53,17 @@ def hide_serial(item: Optional[Union[dict, str, list]]) -> Union[dict, str, list
     if isinstance(item, dict):
         response = item.copy()
         for key, value in item.items():
-            if isinstance(value, (dict, list)) or key in [
-                "deviceSerialNumber",
-                "serialNumber",
-                "destinationUserId",
-                "customerId",
-            ]:
+            if (
+                isinstance(value, (dict, list))
+                or key
+                in [
+                    "deviceSerialNumber",
+                    "serialNumber",
+                    "destinationUserId",
+                    "customerId",
+                ]
+                or "secret" in key
+            ):
                 response[key] = hide_serial(value)
     elif isinstance(item, str):
         response = "{}{}{}".format(item[0], "*" * (len(item) - 4), item[-3:])
@@ -85,12 +90,16 @@ def obfuscate(item):
                 response[key] = hide_email(value)
             elif key in ["cookies_txt"]:
                 response[key] = "OBFUSCATED COOKIE"
-            elif key in [
-                "deviceSerialNumber",
-                "serialNumber",
-                "destinationUserId",
-                "customerId",
-            ]:
+            elif (
+                key
+                in [
+                    "deviceSerialNumber",
+                    "serialNumber",
+                    "destinationUserId",
+                    "customerId",
+                ]
+                or "secret" in key
+            ):
                 response[key] = hide_serial(value)
             elif isinstance(value, (dict, list, tuple)):
                 response[key] = obfuscate(value)
@@ -125,7 +134,7 @@ def _catch_all_exceptions(func):
                 obfuscate(kwargs),
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
-            raise AlexapyConnectionError
+            raise AlexapyConnectionError from ex
         except (JSONDecodeError, CookieError) as ex:
             _LOGGER.warning(
                 "%s.%s(%s, %s): A login error occured: %s",
@@ -135,7 +144,7 @@ def _catch_all_exceptions(func):
                 obfuscate(kwargs),
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
-            raise AlexapyLoginError
+            raise AlexapyLoginError from ex
         except (ContentTypeError) as ex:
             _LOGGER.warning(
                 "%s.%s(%s, %s): A login error occured; Amazon may want you to change your password: %s",
@@ -145,7 +154,7 @@ def _catch_all_exceptions(func):
                 obfuscate(kwargs),
                 EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
             )
-            raise AlexapyLoginError
+            raise AlexapyLoginError from ex
         except CancelledError as ex:
             _LOGGER.warning(
                 "%s.%s(%s, %s): Timeout error occured accessing AlexaAPI: %s",
